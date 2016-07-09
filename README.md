@@ -1,5 +1,5 @@
-# special-octo-funicular
+# Special Octo Funicular
 Getting to know GitHub
 
-## Second Level Header
+## What is this?
 Here is the future of content.
