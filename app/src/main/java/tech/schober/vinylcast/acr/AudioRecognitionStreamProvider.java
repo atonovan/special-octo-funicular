@@ -1,7 +1,10 @@
 package tech.schober.vinylcast.acr;
 
+import android.util.Pair;
+
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -12,36 +15,48 @@ import tech.schober.vinylcast.acr.api.AudioRecognitionApiClient;
 import tech.schober.vinylcast.acr.model.RecognitionResult;
 import tech.schober.vinylcast.audio.AudioStreamProvider;
 import tech.schober.vinylcast.audio.NativeAudioEngine;
+import tech.schober.vinylcast.utils.VinylCastHelpers;
 import timber.log.Timber;
 
 /**
- * Stream provider that performs audio recognition on the audio stream
+ * Stream provider that performs audio recognition on the audio stream while
+ * passing the audio through unchanged (acts as a "tee")
  */
-public class AudioRecognitionStreamProvider implements Runnable {
+public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProvider {
     private static final int RECOGNITION_INTERVAL_MS = 30000; // Recognize every 30 seconds
     private static final int FINGERPRINT_DURATION_SEC = 15; // Use 15 seconds of audio for fingerprinting
     private static final int BUFFER_SIZE = 4096;
 
-    private final AudioStreamProvider audioStreamProvider;
+    private final AudioStreamProvider upstreamProvider;
     private final int sampleRate;
     private final int channelCount;
     private final CopyOnWriteArrayList<AudioRecognitionListener> listeners;
     private final AudioRecognitionApiClient apiClient;
     private final ExecutorService executor;
 
+    private InputStream upstreamInputStream;
+    private OutputStream downstreamOutputStream;
+    private InputStream downstreamInputStream;
+
     private Thread thread;
     private volatile boolean running = false;
     private long lastRecognitionTime = 0;
 
-    public AudioRecognitionStreamProvider(AudioStreamProvider audioStreamProvider,
+    public AudioRecognitionStreamProvider(AudioStreamProvider upstreamProvider,
                                           int sampleRate,
-                                          int channelCount) {
-        this.audioStreamProvider = audioStreamProvider;
+                                          int channelCount,
+                                          int bufferSize) throws IOException {
+        this.upstreamProvider = upstreamProvider;
         this.sampleRate = sampleRate;
         this.channelCount = channelCount;
         this.listeners = new CopyOnWriteArrayList<>();
         this.apiClient = new AudioRecognitionApiClient();
         this.executor = Executors.newSingleThreadExecutor();
+
+        // Create piped streams for pass-through
+        Pair<OutputStream, InputStream> streams = VinylCastHelpers.getPipedAudioStreams(bufferSize);
+        this.downstreamOutputStream = streams.first;
+        this.downstreamInputStream = streams.second;
     }
 
     public void addListener(AudioRecognitionListener listener) {
@@ -80,22 +95,25 @@ public class AudioRecognitionStreamProvider implements Runnable {
 
     @Override
     public void run() {
-        InputStream inputStream = null;
         try {
-            inputStream = audioStreamProvider.getAudioInputStream();
+            upstreamInputStream = upstreamProvider.getAudioInputStream();
             byte[] buffer = new byte[BUFFER_SIZE];
             int samplesNeeded = sampleRate * channelCount * FINGERPRINT_DURATION_SEC;
             short[] fingerprintBuffer = new short[samplesNeeded];
             int fingerprintSampleCount = 0;
 
             while (running) {
-                int bytesRead = inputStream.read(buffer);
+                int bytesRead = upstreamInputStream.read(buffer);
                 if (bytesRead <= 0) {
                     Thread.sleep(10);
                     continue;
                 }
 
-                // Convert bytes to shorts (16-bit PCM)
+                // Pass audio through to downstream (this is critical!)
+                downstreamOutputStream.write(buffer, 0, bytesRead);
+                downstreamOutputStream.flush();
+
+                // Convert bytes to shorts (16-bit PCM) for fingerprinting
                 ByteBuffer byteBuffer = ByteBuffer.wrap(buffer, 0, bytesRead);
                 byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -122,12 +140,15 @@ public class AudioRecognitionStreamProvider implements Runnable {
             Timber.e(e, "Error in AudioRecognitionStreamProvider");
             notifyRecognitionFailed(e.getMessage());
         } finally {
-            if (inputStream != null) {
-                try {
-                    inputStream.close();
-                } catch (IOException e) {
-                    Timber.e(e, "Failed to close input stream");
+            try {
+                if (upstreamInputStream != null) {
+                    upstreamInputStream.close();
                 }
+                if (downstreamOutputStream != null) {
+                    downstreamOutputStream.close();
+                }
+            } catch (IOException e) {
+                Timber.e(e, "Failed to close streams");
             }
         }
     }
@@ -199,5 +220,26 @@ public class AudioRecognitionStreamProvider implements Runnable {
         for (AudioRecognitionListener listener : listeners) {
             listener.onRecognitionInProgress();
         }
+    }
+
+    // AudioStreamProvider interface implementation
+    @Override
+    public InputStream getAudioInputStream() {
+        return downstreamInputStream;
+    }
+
+    @Override
+    public int getSampleRate() {
+        return sampleRate;
+    }
+
+    @Override
+    public int getChannelCount() {
+        return channelCount;
+    }
+
+    @Override
+    public int getAudioEncoding() {
+        return upstreamProvider.getAudioEncoding();
     }
 }

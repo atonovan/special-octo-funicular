@@ -298,9 +298,18 @@ public class VinylCastService extends MediaBrowserServiceCompat {
             return;
         }
 
+        // Start audio recognition (acts as pass-through in the pipeline)
+        if (!startAudioRecognition()) {
+            Timber.e("Failed to start Audio Recognition. Stopping VinylCastService...");
+            updateStatus(STATUS_ERROR_AUDIO_RECORD_FAILED);
+            disengage(true);
+            return;
+        }
+
         switch (audioEncoding) {
             case AUDIO_ENCODING_AAC:
-                if (!startAudioConverter(audioRecordStreamProvider, AUDIO_STREAM_BUFFER_SIZE)) {
+                // Convert audio from recognition provider (not directly from record provider)
+                if (!startAudioConverter(audioRecognitionStreamProvider, AUDIO_STREAM_BUFFER_SIZE)) {
                     Timber.e("Failed to start Audio Converter. Stopping VinylCastService...");
                     updateStatus(STATUS_ERROR_AUDIO_CONVERT_FAILED);
                     disengage(true);
@@ -309,7 +318,7 @@ public class VinylCastService extends MediaBrowserServiceCompat {
                 httpStreamProvider = convertAudioStreamProvider;
                 break;
             default:
-                httpStreamProvider = audioRecordStreamProvider;
+                httpStreamProvider = audioRecognitionStreamProvider;
                 break;
         }
 
@@ -319,8 +328,6 @@ public class VinylCastService extends MediaBrowserServiceCompat {
             disengage(true);
             return;
         }
-
-        startAudioRecognition();
 
         startAudioVisualizer(
                 audioRecordStreamProvider.getAudioInputStream(),
@@ -513,7 +520,8 @@ public class VinylCastService extends MediaBrowserServiceCompat {
             audioRecognitionStreamProvider = new AudioRecognitionStreamProvider(
                     audioRecordStreamProvider,
                     sampleRate,
-                    channelCount
+                    channelCount,
+                    AUDIO_STREAM_BUFFER_SIZE
             );
 
             // Add internal listener to handle recognition results
