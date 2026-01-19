@@ -1,3 +1,6 @@
 [submodule "oboe"]
 	path = oboe
 	url = https://github.com/google/oboe.git
+[submodule "chromaprint"]
+	path = chromaprint
+	url = https://github.com/acoustid/chromaprint.git

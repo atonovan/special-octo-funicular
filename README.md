@@ -16,7 +16,21 @@ The Vinyl Cast App makes use of Android's USB audio peripheral support, audio re
 
 #### Website: [Vinyl Cast](https://vinylcast.schober.tech)
 
-Note: The initial release of Vinyl Cast included using Audio ACR to detect the song being played, but unfortunately this feature relied on a now discontinued third-party library/service so the feature was removed. Other options are being explored to add this feature back to Vinyl Cast in the future.
+---
+
+## :sparkles: **NEW: Audio Recognition Feature**
+
+This fork includes **automatic song recognition** powered by AcoustID, MusicBrainz, and Chromaprint! The app now automatically identifies what's playing on your vinyl and displays:
+
+- **Album Artwork** in the app, notification, and Chromecast
+- **Track Information** (title, artist, album)
+- **Real-time Updates** as songs change
+
+**100% Free & Open Source APIs** - No paid subscriptions required!
+
+:point_right: **[Setup Guide](AUDIO_RECOGNITION_SETUP.md)** - Get your free API key and start recognizing music in 5 minutes
+
+---
 
 #### Simple UI: Tap the record or play button to start streaming
 

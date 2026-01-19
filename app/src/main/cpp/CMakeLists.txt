@@ -29,6 +29,13 @@ get_filename_component(VINYL_CAST_ROOT_DIR
 set (OBOE_DIR ${VINYL_CAST_ROOT_DIR}/oboe)
 add_subdirectory(${OBOE_DIR} ./oboe-bin)
 
+### INCLUDE CHROMAPRINT LIBRARY ###
+set (CHROMAPRINT_DIR ${VINYL_CAST_ROOT_DIR}/chromaprint)
+set (BUILD_TOOLS OFF CACHE BOOL "Don't build chromaprint tools")
+set (BUILD_TESTS OFF CACHE BOOL "Don't build chromaprint tests")
+set (FFT_LIB "kissfft" CACHE STRING "Use kissfft for FFT")
+add_subdirectory(${CHROMAPRINT_DIR} ./chromaprint-bin)
+
 add_library(vinylCast
     SHARED
         NativeAudioEngine.cpp
@@ -41,6 +48,7 @@ target_include_directories(vinylCast
 target_link_libraries(vinylCast
     PRIVATE
         oboe
+        chromaprint
         android
         atomic
         log)

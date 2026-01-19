@@ -38,6 +38,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import tech.schober.vinylcast.acr.AudioRecognitionListener;
+import tech.schober.vinylcast.acr.AudioRecognitionStreamProvider;
+import tech.schober.vinylcast.acr.model.RecognitionResult;
 import tech.schober.vinylcast.audio.AudioRecordStreamProvider;
 import tech.schober.vinylcast.audio.AudioStreamProvider;
 import tech.schober.vinylcast.audio.AudioVisualizer;
@@ -92,6 +95,10 @@ public class VinylCastService extends MediaBrowserServiceCompat {
     private AudioVisualizer audioVisualizer;
     private CopyOnWriteArrayList<AudioVisualizer.AudioVisualizerListener> audioVisualizerListeners = new CopyOnWriteArrayList<>();
 
+    private AudioRecognitionStreamProvider audioRecognitionStreamProvider;
+    private CopyOnWriteArrayList<AudioRecognitionListener> audioRecognitionListeners = new CopyOnWriteArrayList<>();
+    private RecognitionResult currentRecognitionResult;
+
     private AudioManager.OnAudioFocusChangeListener audioFocusChangeListener;
     private AudioFocusRequest audioFocusRequest;
     private MediaSessionCompat mediaSession;
@@ -128,6 +135,18 @@ public class VinylCastService extends MediaBrowserServiceCompat {
 
         public void removeAudioVisualizerListener(AudioVisualizer.AudioVisualizerListener listener) {
             audioVisualizerListeners.remove(listener);
+        }
+
+        public void addAudioRecognitionListener(AudioRecognitionListener listener) {
+            audioRecognitionListeners.add(listener);
+        }
+
+        public void removeAudioRecognitionListener(AudioRecognitionListener listener) {
+            audioRecognitionListeners.remove(listener);
+        }
+
+        public RecognitionResult getCurrentRecognitionResult() {
+            return currentRecognitionResult;
         }
 
         public void start() {
@@ -301,7 +320,7 @@ public class VinylCastService extends MediaBrowserServiceCompat {
             return;
         }
 
-        //startAudioRecognition();
+        startAudioRecognition();
 
         startAudioVisualizer(
                 audioRecordStreamProvider.getAudioInputStream(),
@@ -482,19 +501,131 @@ public class VinylCastService extends MediaBrowserServiceCompat {
     }
 
     private boolean startAudioRecognition() {
-        Intent startRecognitionIntent = new Intent();
-        startRecognitionIntent.setClassName(this, "tech.schober.audioacr.AudioRecognitionService");
+        if (audioRecordStreamProvider == null) {
+            Timber.e("Cannot start audio recognition: audioRecordStreamProvider is null");
+            return false;
+        }
 
-        startService(startRecognitionIntent);
-        return true;
+        try {
+            int sampleRate = audioRecordStreamProvider.getSampleRate();
+            int channelCount = audioRecordStreamProvider.getChannelCount();
+
+            audioRecognitionStreamProvider = new AudioRecognitionStreamProvider(
+                    audioRecordStreamProvider,
+                    sampleRate,
+                    channelCount
+            );
+
+            // Add internal listener to handle recognition results
+            audioRecognitionStreamProvider.addListener(new AudioRecognitionListener() {
+                @Override
+                public void onTrackRecognized(RecognitionResult result) {
+                    currentRecognitionResult = result;
+                    updateMediaMetadata(result);
+                    // Notify external listeners
+                    for (AudioRecognitionListener listener : audioRecognitionListeners) {
+                        listener.onTrackRecognized(result);
+                    }
+                }
+
+                @Override
+                public void onRecognitionFailed(String error) {
+                    Timber.w("Recognition failed: %s", error);
+                    // Notify external listeners
+                    for (AudioRecognitionListener listener : audioRecognitionListeners) {
+                        listener.onRecognitionFailed(error);
+                    }
+                }
+
+                @Override
+                public void onRecognitionInProgress() {
+                    // Notify external listeners
+                    for (AudioRecognitionListener listener : audioRecognitionListeners) {
+                        listener.onRecognitionInProgress();
+                    }
+                }
+            });
+
+            audioRecognitionStreamProvider.start();
+            Timber.i("Audio recognition started");
+            return true;
+
+        } catch (Exception e) {
+            Timber.e(e, "Failed to start audio recognition");
+            return false;
+        }
     }
 
     private boolean stopAudioRecognition() {
-        Intent stopRecognitionIntent = new Intent();
-        stopRecognitionIntent.setClassName(this, "tech.schober.audioacr.AudioRecognitionService");
+        if (audioRecognitionStreamProvider != null) {
+            audioRecognitionStreamProvider.stop();
+            audioRecognitionStreamProvider = null;
+            currentRecognitionResult = null;
+            Timber.i("Audio recognition stopped");
+        }
+        return true;
+    }
 
-        stopService(stopRecognitionIntent);
-        return false;
+    private void updateMediaMetadata(RecognitionResult result) {
+        Timber.i("Updating media metadata: %s", result);
+
+        // Update MediaSession metadata
+        if (mediaSession != null) {
+            android.support.v4.media.MediaMetadataCompat.Builder metadataBuilder =
+                    new android.support.v4.media.MediaMetadataCompat.Builder()
+                    .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, result.getTitle())
+                    .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, result.getArtist())
+                    .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, result.getAlbum());
+
+            if (result.getAlbumArtwork() != null) {
+                metadataBuilder.putBitmap(
+                        android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART,
+                        result.getAlbumArtwork());
+            }
+
+            mediaSession.setMetadata(metadataBuilder.build());
+        }
+
+        // Update Cast session with metadata
+        if (((VinylCastApplication)getApplication()).getCastSessionManager().getCurrentCastSession() != null) {
+            RemoteMediaClient remoteMediaClient = ((VinylCastApplication)getApplication())
+                    .getCastSessionManager().getCurrentCastSession().getRemoteMediaClient();
+
+            if (remoteMediaClient != null && isRecording() && httpStreamServer != null) {
+                MediaMetadata castMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_MUSIC_TRACK);
+                castMetadata.putString(MediaMetadata.KEY_TITLE, result.getTitle());
+                castMetadata.putString(MediaMetadata.KEY_ARTIST, result.getArtist());
+                castMetadata.putString(MediaMetadata.KEY_ALBUM_TITLE, result.getAlbum());
+
+                // Add album artwork to Cast metadata
+                if (result.getAlbumArtwork() != null && result.getReleaseId() != null) {
+                    // Use Cover Art Archive URL for album art
+                    String artworkUrl = "https://coverartarchive.org/release/" +
+                            result.getReleaseId() + "/front-500";
+                    castMetadata.addImage(new com.google.android.gms.common.images.WebImage(
+                            android.net.Uri.parse(artworkUrl)));
+                }
+
+                String url = httpStreamServer.getStreamUrl();
+                MediaInfo mediaInfo = new MediaInfo.Builder(url)
+                        .setContentType(httpStreamServer.getContentType())
+                        .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
+                        .setStreamDuration(MediaInfo.UNKNOWN_DURATION)
+                        .setMetadata(castMetadata)
+                        .build();
+
+                MediaLoadRequestData mediaLoadRequestData = new MediaLoadRequestData.Builder()
+                        .setMediaInfo(mediaInfo)
+                        .build();
+                remoteMediaClient.load(mediaLoadRequestData);
+            }
+        }
+
+        // Update notification with new metadata
+        if (isRecording()) {
+            startForeground(NOTIFICATION_ID,
+                    VinylCastHelpers.createStopNotification(this, currentRecognitionResult));
+        }
     }
 
     private void registerForBecomingNoisy() {

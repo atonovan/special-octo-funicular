@@ -23,6 +23,7 @@
 #include <jni.h>
 #include <logging_macros.h>
 #include "NativeAudioEngine.h"
+#include <chromaprint.h>
 
 static const int kOboeApiAAudio = 0;
 static const int kOboeApiOpenSLES = 1;
@@ -233,5 +234,80 @@ extern "C" {
             return;
         }
         engine->setGainDecibels(decibels);
+    }
+
+    // Chromaprint JNI methods
+    JNIEXPORT jlong JNICALL
+    Java_tech_schober_vinylcast_audio_NativeAudioEngine_createChromaprint(
+            JNIEnv *env, jclass, jint sampleRate, jint channels) {
+        ChromaprintContext *ctx = chromaprint_new(CHROMAPRINT_ALGORITHM_DEFAULT);
+        if (ctx == nullptr) {
+            LOGE("Failed to create chromaprint context");
+            return 0;
+        }
+
+        if (!chromaprint_start(ctx, sampleRate, channels)) {
+            LOGE("Failed to start chromaprint");
+            chromaprint_free(ctx);
+            return 0;
+        }
+
+        return reinterpret_cast<jlong>(ctx);
+    }
+
+    JNIEXPORT jboolean JNICALL
+    Java_tech_schober_vinylcast_audio_NativeAudioEngine_feedChromaprint(
+            JNIEnv *env, jclass, jlong ctxPtr, jshortArray samples, jint length) {
+        ChromaprintContext *ctx = reinterpret_cast<ChromaprintContext*>(ctxPtr);
+        if (ctx == nullptr) {
+            LOGE("Chromaprint context is null");
+            return JNI_FALSE;
+        }
+
+        jshort *sampleData = env->GetShortArrayElements(samples, nullptr);
+        if (sampleData == nullptr) {
+            LOGE("Failed to get sample data");
+            return JNI_FALSE;
+        }
+
+        int result = chromaprint_feed(ctx, sampleData, length);
+        env->ReleaseShortArrayElements(samples, sampleData, JNI_ABORT);
+
+        return result ? JNI_TRUE : JNI_FALSE;
+    }
+
+    JNIEXPORT jstring JNICALL
+    Java_tech_schober_vinylcast_audio_NativeAudioEngine_finishChromaprint(
+            JNIEnv *env, jclass, jlong ctxPtr) {
+        ChromaprintContext *ctx = reinterpret_cast<ChromaprintContext*>(ctxPtr);
+        if (ctx == nullptr) {
+            LOGE("Chromaprint context is null");
+            return nullptr;
+        }
+
+        if (!chromaprint_finish(ctx)) {
+            LOGE("Failed to finish chromaprint");
+            return nullptr;
+        }
+
+        char *fingerprint = nullptr;
+        if (!chromaprint_get_fingerprint(ctx, &fingerprint)) {
+            LOGE("Failed to get fingerprint");
+            return nullptr;
+        }
+
+        jstring result = env->NewStringUTF(fingerprint);
+        chromaprint_dealloc(fingerprint);
+
+        return result;
+    }
+
+    JNIEXPORT void JNICALL
+    Java_tech_schober_vinylcast_audio_NativeAudioEngine_freeChromaprint(
+            JNIEnv *env, jclass, jlong ctxPtr) {
+        ChromaprintContext *ctx = reinterpret_cast<ChromaprintContext*>(ctxPtr);
+        if (ctx != nullptr) {
+            chromaprint_free(ctx);
+        }
     }
 }

@@ -27,5 +27,11 @@ public enum NativeAudioEngine {
     public static native boolean startRecording();
     public static native boolean stopRecording();
     public static native void delete();
+
+    // Chromaprint fingerprinting methods
+    public static native long createChromaprint(int sampleRate, int channels);
+    public static native boolean feedChromaprint(long ctx, short[] samples, int length);
+    public static native String finishChromaprint(long ctx);
+    public static native void freeChromaprint(long ctx);
 }
 

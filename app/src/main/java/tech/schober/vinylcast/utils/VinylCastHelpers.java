@@ -29,6 +29,7 @@ import java.io.PipedOutputStream;
 
 import tech.schober.vinylcast.R;
 import tech.schober.vinylcast.VinylCastService;
+import tech.schober.vinylcast.acr.model.RecognitionResult;
 import tech.schober.vinylcast.ui.main.MainActivity;
 
 import static android.content.Context.WIFI_SERVICE;
@@ -92,6 +93,46 @@ public class VinylCastHelpers {
                 .build();
 
         context.startForeground(NOTIFICATION_ID, notification);
+    }
+
+    public static Notification createStopNotification(VinylCastService context, RecognitionResult recognitionResult) {
+        String NOTIFICATION_CHANNEL_ID = "tech.schober.vinylcast.CHANNEL_ACTIVELY_RECORDING";
+        createNotificationChannel(context, NOTIFICATION_CHANNEL_ID);
+
+        PendingIntent stopIntent = PendingIntent.getService(context, 0,
+                getServiceActionIntent(VinylCastService.ACTION_STOP_RECORDING, context, VinylCastService.class),
+                PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent mainActivityIntent = PendingIntent.getActivity(context, 0,
+                getActivityIntent(context, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
+
+        CharSequence contentTitle;
+        CharSequence contentText;
+        Bitmap largeIcon = null;
+
+        if (recognitionResult != null) {
+            contentTitle = recognitionResult.getTitle();
+            contentText = recognitionResult.getArtist() + " - " + recognitionResult.getAlbum();
+            largeIcon = recognitionResult.getAlbumArtwork();
+        } else {
+            contentTitle = context.getString(R.string.notification_content_title);
+            contentText = "Streaming vinyl...";
+        }
+
+        Notification notification = new Builder(context, NOTIFICATION_CHANNEL_ID)
+                .setContentTitle(contentTitle)
+                .setContentText(contentText)
+                .setLargeIcon(largeIcon)
+                .setContentIntent(mainActivityIntent)
+                .setDeleteIntent(stopIntent)
+                .setShowWhen(false)
+                .addAction(new Action(
+                        R.drawable.ic_stop_black_24dp, context.getString(R.string.button_stop),
+                        stopIntent))
+                .setSmallIcon(R.drawable.ic_record_black_100dp)
+                .setVisibility(VISIBILITY_PUBLIC)
+                .build();
+
+        return notification;
     }
 
     public static Intent getServiceActionIntent(String action, Context con, Class<?> serviceClass) {

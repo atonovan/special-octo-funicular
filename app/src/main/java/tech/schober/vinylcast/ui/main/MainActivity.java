@@ -14,6 +14,8 @@ import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.LinearInterpolator;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
@@ -28,6 +30,8 @@ import com.google.android.gms.cast.framework.CastContext;
 
 import tech.schober.vinylcast.R;
 import tech.schober.vinylcast.VinylCastService;
+import tech.schober.vinylcast.acr.AudioRecognitionListener;
+import tech.schober.vinylcast.acr.model.RecognitionResult;
 import tech.schober.vinylcast.audio.AudioVisualizer;
 import tech.schober.vinylcast.ui.VinylCastActivity;
 import tech.schober.vinylcast.ui.settings.SettingsActivity;
@@ -44,7 +48,7 @@ import static tech.schober.vinylcast.VinylCastService.STATUS_READY;
 import static tech.schober.vinylcast.VinylCastService.STATUS_RECORDING;
 import static tech.schober.vinylcast.VinylCastService.STATUS_STOPPED;
 
-public class MainActivity extends VinylCastActivity implements VinylCastService.VinylCastServiceListener, AudioVisualizer.AudioVisualizerListener {
+public class MainActivity extends VinylCastActivity implements VinylCastService.VinylCastServiceListener, AudioVisualizer.AudioVisualizerListener, AudioRecognitionListener {
     private static final String TAG = "MainActivity";
 
     private static final int RECORD_REQUEST_CODE = 1;
@@ -56,6 +60,12 @@ public class MainActivity extends VinylCastActivity implements VinylCastService.
     private ObjectAnimator recordingButtonAnimator;
 
     private BarGraphView barGraphView;
+
+    private LinearLayout recognitionContainer;
+    private ImageView albumArtworkView;
+    private TextView trackTitleView;
+    private TextView trackArtistView;
+    private TextView trackAlbumView;
 
     private boolean isServiceRecording = false;
 
@@ -80,6 +90,13 @@ public class MainActivity extends VinylCastActivity implements VinylCastService.
         });
 
         barGraphView = findViewById(R.id.audio_visualizer);
+
+        // Initialize recognition UI elements
+        recognitionContainer = findViewById(R.id.recognition_container);
+        albumArtworkView = findViewById(R.id.album_artwork);
+        trackTitleView = findViewById(R.id.track_title);
+        trackArtistView = findViewById(R.id.track_artist);
+        trackAlbumView = findViewById(R.id.track_album);
     }
 
     @Override
@@ -147,6 +164,7 @@ public class MainActivity extends VinylCastActivity implements VinylCastService.
         super.onServiceConnected(className, service);
         binder.addVinylCastServiceListener(this);
         binder.addAudioVisualizerListener(this);
+        binder.addAudioRecognitionListener(this);
     }
 
     @Override
@@ -154,6 +172,7 @@ public class MainActivity extends VinylCastActivity implements VinylCastService.
         Timber.d("onServiceDisconnected");
         binder.removeVinylCastServiceListener(this);
         binder.removeAudioVisualizerListener(this);
+        binder.removeAudioRecognitionListener(this);
         super.onServiceDisconnected(className);
     }
 
@@ -341,5 +360,43 @@ public class MainActivity extends VinylCastActivity implements VinylCastService.
             statusText.setVisibility(View.VISIBLE);
             statusText.setText(status);
         }
+    }
+
+    // AudioRecognitionListener implementation
+    @Override
+    public void onTrackRecognized(RecognitionResult result) {
+        Timber.i("Track recognized: %s", result);
+        runOnUiThread(() -> updateRecognitionUI(result));
+    }
+
+    @Override
+    public void onRecognitionFailed(String error) {
+        Timber.w("Recognition failed: %s", error);
+        // Optionally hide the recognition UI on failure
+        runOnUiThread(() -> recognitionContainer.setVisibility(View.GONE));
+    }
+
+    @Override
+    public void onRecognitionInProgress() {
+        Timber.d("Recognition in progress");
+    }
+
+    private void updateRecognitionUI(RecognitionResult result) {
+        if (result == null) {
+            recognitionContainer.setVisibility(View.GONE);
+            return;
+        }
+
+        trackTitleView.setText(result.getTitle());
+        trackArtistView.setText(result.getArtist());
+        trackAlbumView.setText(result.getAlbum());
+
+        if (result.getAlbumArtwork() != null) {
+            albumArtworkView.setImageBitmap(result.getAlbumArtwork());
+        } else {
+            albumArtworkView.setImageResource(R.drawable.vinyl_orange_512);
+        }
+
+        recognitionContainer.setVisibility(View.VISIBLE);
     }
 }
