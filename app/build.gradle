@@ -44,7 +44,7 @@ android {
     }
     compileSdk 34
     defaultConfig {
-        applicationId 'tech.schober.vinylcast'
+        applicationId 'tech.schober.vinylcast.atonovan'
         minSdkVersion 23
         targetSdkVersion 34
         versionCode gitVersionCode
@@ -73,12 +73,12 @@ android {
     productFlavors {
         github {
             dimension "destination"
-            applicationId 'tech.schober.vinylcast.github'
+            applicationId 'tech.schober.vinylcast.atonovan.github'
             versionNameSuffix "-github"
         }
         playstore {
             dimension "destination"
-            applicationId 'tech.schober.vinylcast.playstore'
+            applicationId 'tech.schober.vinylcast.atonovan.playstore'
             versionNameSuffix "-playstore"
             // dynamicFeatures = [":audio_acr"]
             firebaseCrashlytics {
