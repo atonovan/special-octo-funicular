@@ -34,7 +34,7 @@ set (CHROMAPRINT_DIR ${VINYL_CAST_ROOT_DIR}/chromaprint)
 set (BUILD_TOOLS OFF CACHE BOOL "Don't build chromaprint tools")
 set (BUILD_TESTS OFF CACHE BOOL "Don't build chromaprint tests")
 set (FFT_LIB "kissfft" CACHE STRING "Use kissfft for FFT")
-set (KISSFFT_ROOT ${CHROMAPRINT_DIR}/src/3rdparty/kissfft CACHE STRING "Path to KissFFT sources")
+set (KISSFFT_ROOT ${CHROMAPRINT_DIR}/src/3rdparty/kissfft CACHE STRING "Path to KissFFT sources" FORCE)
 add_subdirectory(${CHROMAPRINT_DIR} ./chromaprint-bin)
 
 add_library(vinylCast
