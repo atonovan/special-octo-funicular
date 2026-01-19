@@ -99,7 +99,7 @@ public class AudioRecognitionStreamProvider implements Runnable {
                 ByteBuffer byteBuffer = ByteBuffer.wrap(buffer, 0, bytesRead);
                 byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
-                while (byteBuffer.hasRemaining() && fingerprintSampleCount < samplesNeeded) {
+                while (byteBuffer.remaining() >= 2 && fingerprintSampleCount < samplesNeeded) {
                     fingerprintBuffer[fingerprintSampleCount++] = byteBuffer.getShort();
                 }
 
