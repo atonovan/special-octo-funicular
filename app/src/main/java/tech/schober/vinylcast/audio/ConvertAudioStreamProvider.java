@@ -114,7 +114,7 @@ public class ConvertAudioStreamProvider implements Runnable, AudioStreamProvider
     private void addADTStoPacket(byte[] packet, int packetLen) {
         int profile = ADTS_HEADER_AUDIO_OBJECT_TYPE;
         int freqIdx = ADTS_HEADER_SAMPLE_RATE_INDEX;
-        int chanCfg = ADTS_HEADER_CHANNEL_CONFIG;
+        int chanCfg = channelCount; // Use actual channel count, not hardcoded value
 
         // fill in ADTS data
         packet[0] = (byte) 0xFF;
@@ -130,6 +130,9 @@ public class ConvertAudioStreamProvider implements Runnable, AudioStreamProvider
     public void run() {
         Log.d(TAG, "starting...");
         Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
+
+        Log.i(TAG, String.format("Configuring AAC encoder: %d Hz, %d channels, %d bps",
+                sampleRate, channelCount, CODEC_BIT_RATE));
 
         MediaFormat format = MediaFormat.createAudioFormat(CODEC_MIME_TYPE, sampleRate, channelCount);
         format.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);

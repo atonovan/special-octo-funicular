@@ -298,6 +298,11 @@ public class VinylCastService extends MediaBrowserServiceCompat {
             return;
         }
 
+        // Log audio configuration
+        Timber.i("Audio configuration: %d Hz, %d channels",
+                audioRecordStreamProvider.getSampleRate(),
+                audioRecordStreamProvider.getChannelCount());
+
         // Start audio recognition (acts as pass-through in the pipeline)
         if (!startAudioRecognition()) {
             Timber.e("Failed to start Audio Recognition. Stopping VinylCastService...");
@@ -672,13 +677,20 @@ public class VinylCastService extends MediaBrowserServiceCompat {
         if (isRecording() && httpStreamServer != null) {
             MediaMetadata audioMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_MUSIC_TRACK);
             String url = httpStreamServer.getStreamUrl();
+
+            // Use more specific content type for AAC with explicit codec info
+            String contentType = httpStreamServer.getContentType();
+            if (contentType.equals("audio/aac")) {
+                contentType = "audio/aac; codecs=\"mp4a.40.2\""; // AAC-LC codec
+            }
+
             MediaInfo mediaInfo = new MediaInfo.Builder(url)
-                    .setContentType(httpStreamServer.getContentType())
+                    .setContentType(contentType)
                     .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
                     .setStreamDuration(MediaInfo.UNKNOWN_DURATION)
                     .setMetadata(audioMetadata)
                     .build();
-            Timber.d("Cast MediaInfo: " + mediaInfo);
+            Timber.i("Cast MediaInfo - URL: %s, ContentType: %s", url, contentType);
             MediaLoadRequestData mediaLoadRequestData = new MediaLoadRequestData.Builder().setMediaInfo(mediaInfo).build();
             remoteMediaClient.load(mediaLoadRequestData);
         } else {

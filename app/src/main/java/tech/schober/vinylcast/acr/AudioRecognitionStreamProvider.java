@@ -129,6 +129,9 @@ public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProv
                     lastRecognitionTime = currentTime;
                     final short[] samplesForRecognition = fingerprintBuffer.clone();
 
+                    Timber.i("Collected %d samples for recognition (%d seconds of audio at %d Hz, %d channels)",
+                            samplesForRecognition.length, FINGERPRINT_DURATION_SEC, sampleRate, channelCount);
+
                     // Perform recognition on a background thread
                     executor.execute(() -> performRecognition(samplesForRecognition));
 

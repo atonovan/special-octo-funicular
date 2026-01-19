@@ -31,6 +31,15 @@ public class AudioRecognitionApiClient {
     private final CoverArtApi coverArtApi;
 
     public AudioRecognitionApiClient() {
+        // Log API key status (first few chars only for security)
+        if (ACOUSTID_API_KEY == null || ACOUSTID_API_KEY.equals("YOUR_API_KEY_HERE") || ACOUSTID_API_KEY.isEmpty()) {
+            Timber.e("AcoustID API key is not configured! Recognition will fail.");
+        } else {
+            String keyPreview = ACOUSTID_API_KEY.length() > 4 ?
+                ACOUSTID_API_KEY.substring(0, 4) + "..." : "***";
+            Timber.i("AcoustID API key loaded: %s", keyPreview);
+        }
+
         OkHttpClient client = new OkHttpClient.Builder().build();
 
         Retrofit acoustIdRetrofit = new Retrofit.Builder()
