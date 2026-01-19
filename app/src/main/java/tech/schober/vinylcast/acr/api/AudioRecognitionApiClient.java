@@ -12,6 +12,7 @@ import retrofit2.Call;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
+import tech.schober.vinylcast.BuildConfig;
 import tech.schober.vinylcast.acr.model.AcoustIdResponse;
 import tech.schober.vinylcast.acr.model.RecognitionResult;
 import timber.log.Timber;
@@ -20,8 +21,9 @@ import timber.log.Timber;
  * Client for audio recognition APIs
  */
 public class AudioRecognitionApiClient {
-    // TODO: Get your own API key from https://acoustid.org/new-application
-    private static final String ACOUSTID_API_KEY = "YOUR_API_KEY_HERE";
+    // API key loaded from local.properties via BuildConfig
+    // Get your own free API key from https://acoustid.org/new-application
+    private static final String ACOUSTID_API_KEY = BuildConfig.ACOUSTID_API_KEY;
     private static final String ACOUSTID_BASE_URL = "https://api.acoustid.org/";
     private static final String COVERART_BASE_URL = "https://coverartarchive.org/";
 

@@ -43,12 +43,26 @@ android {
         buildConfig true
     }
     compileSdk 34
+
+    // Load API keys from local.properties
+    def localProperties = new Properties()
+    def localPropertiesFile = rootProject.file('local.properties')
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.withInputStream { stream ->
+            localProperties.load(stream)
+        }
+    }
+
     defaultConfig {
         applicationId 'tech.schober.vinylcast.atdonovan'
         minSdkVersion 23
         targetSdkVersion 34
         versionCode gitVersionCode
         versionName gitVersionName
+
+        // Inject AcoustID API key into BuildConfig
+        buildConfigField "String", "ACOUSTID_API_KEY", "\"${localProperties.getProperty('ACOUSTID_API_KEY', 'YOUR_API_KEY_HERE')}\""
+
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
         }
