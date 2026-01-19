@@ -47,7 +47,8 @@ add_library(vinylCast
 target_include_directories(vinylCast
     PRIVATE
         ${VINYL_CAST_ROOT_DIR}/debug-utils
-        ${OBOE_DIR}/include)
+        ${OBOE_DIR}/include
+        ${CHROMAPRINT_DIR}/src)
 target_link_libraries(vinylCast
     PRIVATE
         oboe
