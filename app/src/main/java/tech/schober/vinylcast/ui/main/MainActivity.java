@@ -97,6 +97,17 @@ public class MainActivity extends VinylCastActivity implements VinylCastService.
         trackTitleView = findViewById(R.id.track_title);
         trackArtistView = findViewById(R.id.track_artist);
         trackAlbumView = findViewById(R.id.track_album);
+
+        // Log if any views are null to help debug
+        if (recognitionContainer == null) {
+            Timber.e("recognitionContainer is null after findViewById");
+        }
+        if (albumArtworkView == null) {
+            Timber.e("albumArtworkView is null after findViewById");
+        }
+        if (trackTitleView == null || trackArtistView == null || trackAlbumView == null) {
+            Timber.e("One or more track info views are null after findViewById");
+        }
     }
 
     @Override
@@ -366,14 +377,26 @@ public class MainActivity extends VinylCastActivity implements VinylCastService.
     @Override
     public void onTrackRecognized(RecognitionResult result) {
         Timber.i("Track recognized: %s", result);
-        runOnUiThread(() -> updateRecognitionUI(result));
+        runOnUiThread(() -> {
+            if (recognitionContainer != null) {
+                updateRecognitionUI(result);
+            } else {
+                Timber.e("Cannot update recognition UI - recognitionContainer is null");
+            }
+        });
     }
 
     @Override
     public void onRecognitionFailed(String error) {
         Timber.w("Recognition failed: %s", error);
         // Optionally hide the recognition UI on failure
-        runOnUiThread(() -> recognitionContainer.setVisibility(View.GONE));
+        runOnUiThread(() -> {
+            if (recognitionContainer != null) {
+                recognitionContainer.setVisibility(View.GONE);
+            } else {
+                Timber.e("Cannot hide recognition UI - recognitionContainer is null");
+            }
+        });
     }
 
     @Override
@@ -382,6 +405,13 @@ public class MainActivity extends VinylCastActivity implements VinylCastService.
     }
 
     private void updateRecognitionUI(RecognitionResult result) {
+        // Check if all views are initialized
+        if (recognitionContainer == null || albumArtworkView == null ||
+            trackTitleView == null || trackArtistView == null || trackAlbumView == null) {
+            Timber.e("Cannot update recognition UI - one or more views are null");
+            return;
+        }
+
         if (result == null) {
             recognitionContainer.setVisibility(View.GONE);
             return;
