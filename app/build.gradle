@@ -1,0 +1,138 @@
+plugins {
+    id('com.android.application')
+    id('com.google.gms.google-services')
+    id('com.google.firebase.crashlytics')
+    id('org.ajoberstar.grgit')
+}
+
+// disable GoogleServices / Firebase tasks for 'github' variants
+android.applicationVariants.configureEach { variant ->
+    if (variant.name.contains('github')) {
+        project.tasks.named('process' + variant.name.capitalize() + 'GoogleServices') {
+            Task it -> it.enabled = false
+        }
+    }
+}
+
+// Disable Firebase for github release.
+project.tasks.configureEach {
+    Task it ->
+        if (it.name == 'uploadCrashlyticsMappingFileGithubRelease') {
+            it.enabled = false
+        }
+}
+
+// use grgit to determine versionCode and versionName
+ext {
+    git = grgit.open {
+        dir = "$projectDir/.."
+    }
+    // Provide default values since forked projects don't inherit tags.
+    gitVersionCode =  git.tag.list().size() ?: 1
+    gitVersionName = "${git.describe(tags: true) ?: 'v0.0.0'}"
+}
+
+tasks.register("printVersion") {
+    println("Version Name: $gitVersionName")
+    println("Version Code: $gitVersionCode")
+}
+
+android {
+    namespace 'tech.schober.vinylcast'
+    buildFeatures {
+        buildConfig true
+    }
+    compileSdk 34
+    defaultConfig {
+        applicationId 'tech.schober.vinylcast'
+        minSdkVersion 23
+        targetSdkVersion 34
+        versionCode gitVersionCode
+        versionName gitVersionName
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        }
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_TOOLCHAIN=clang'
+                abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            debuggable true
+        }
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    flavorDimensions = ["destination"]
+    productFlavors {
+        github {
+            dimension "destination"
+            applicationId 'tech.schober.vinylcast.github'
+            versionNameSuffix "-github"
+        }
+        playstore {
+            dimension "destination"
+            applicationId 'tech.schober.vinylcast.playstore'
+            versionNameSuffix "-playstore"
+            // dynamicFeatures = [":audio_acr"]
+            firebaseCrashlytics {
+                // Enable processing and uploading of native symbols to Crashlytics
+                // servers. By default, this is disabled to improve build speeds.
+                // This flag must be enabled to see properly-symbolicated native
+                // stack traces in the Crashlytics dashboard.
+                nativeSymbolUploadEnabled true
+            }
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+}
+
+dependencies {
+    implementation(platform('org.jetbrains.kotlin:kotlin-bom:1.8.0'))
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation "androidx.cardview:cardview:1.0.0"
+    implementation 'androidx.preference:preference:1.2.1'
+    implementation 'androidx.mediarouter:mediarouter:1.6.0'
+    implementation 'com.google.android.gms:play-services-cast-framework:21.4.0'
+    // Logging
+    implementation 'com.jakewharton.timber:timber:5.0.1'
+    // HTTP Server
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    // Apache Commons IO for additional InputStream methods
+    implementation 'commons-io:commons-io:2.15.1'
+
+    /*
+     * product flavor: playstore
+     */
+    playstoreApi 'com.google.android.play:core:1.10.3'
+    playstoreImplementation platform('com.google.firebase:firebase-bom:32.7.2')
+    playstoreImplementation 'com.google.firebase:firebase-crashlytics-ndk'
+    playstoreImplementation 'com.google.firebase:firebase-analytics'
+    /*
+     * Test
+     */
+    testImplementation 'junit:junit:4.13.2'
+    androidTestCompileOnly 'com.google.android:android-test:4.1.1.4'
+}
