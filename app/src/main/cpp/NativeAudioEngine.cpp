@@ -160,20 +160,20 @@ bool NativeAudioEngine::prepareRecording(JNIEnv *env) {
     // properties we should get the lowest latency path
     oboe::AudioStreamBuilder inBuilder, outBuilder;
     setupPlaybackStreamParameters(&outBuilder);
-    LOGI("Requesting playback stream: %d channels", mOutputChannelCount);
+    LOGW("Requesting playback stream: %d channels", mOutputChannelCount);
     oboe::Result result = outBuilder.openManagedStream(mPlayStream);
     if (result != oboe::Result::OK) {
         return false;
     }
     warnIfNotLowLatency(mPlayStream);
     mSampleRate = mPlayStream->getSampleRate();
-    LOGI("Playback stream opened: %d Hz, %d channels (requested %d)",
+    LOGW("Playback stream opened: %d Hz, %d channels (requested %d)",
          mPlayStream->getSampleRate(),
          mPlayStream->getChannelCount(),
          mOutputChannelCount);
 
     setupRecordingStreamParameters(&inBuilder);
-    LOGI("Requesting recording stream: %d Hz, %d channels", mSampleRate, mInputChannelCount);
+    LOGW("Requesting recording stream: %d Hz, %d channels", mSampleRate, mInputChannelCount);
     result = inBuilder.openManagedStream(mRecordingStream);
     if (result != oboe::Result::OK) {
         closeStream(mPlayStream);
@@ -181,7 +181,7 @@ bool NativeAudioEngine::prepareRecording(JNIEnv *env) {
     }
     warnIfNotLowLatency(mRecordingStream);
     mAudioApi = mRecordingStream->getAudioApi();
-    LOGI("Recording stream opened: %d Hz, %d channels (requested %d)",
+    LOGW("Recording stream opened: %d Hz, %d channels (requested %d)",
          mRecordingStream->getSampleRate(),
          mRecordingStream->getChannelCount(),
          mInputChannelCount);
