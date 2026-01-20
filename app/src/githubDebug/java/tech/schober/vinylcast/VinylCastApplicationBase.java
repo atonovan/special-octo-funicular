@@ -4,6 +4,8 @@ import android.app.Application;
 import android.os.StrictMode;
 import android.util.Log;
 
+import timber.log.Timber;
+
 public class VinylCastApplicationBase extends Application {
     private static final String TAG = "VinylCastApplicationBase";
     private static final boolean STRICT_MODE = false;
@@ -11,6 +13,10 @@ public class VinylCastApplicationBase extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        // Initialize Timber for debug logging
+        Timber.plant(new Timber.DebugTree());
+
         if (STRICT_MODE) {
             StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
                     .detectAll()
