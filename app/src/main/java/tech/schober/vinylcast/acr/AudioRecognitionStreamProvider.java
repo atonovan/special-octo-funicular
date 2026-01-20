@@ -161,15 +161,27 @@ public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProv
             Timber.i("Starting audio recognition...");
             notifyRecognitionInProgress();
 
-            // Convert stereo to mono and resample to 44100 Hz for better AcoustID matching
-            short[] processedSamples = prepareAudioForFingerprinting(samples);
-            int fingerprintSampleRate = 44100;
-            int fingerprintChannels = 1;
+            // Try using raw audio first without resampling to see if that works better
+            short[] processedSamples = samples;
+            int fingerprintSampleRate = sampleRate;  // Use original 48000 Hz
+            int fingerprintChannels = channelCount;  // Use original 2 channels
 
-            Timber.d("Processed audio for fingerprinting: %d samples at %d Hz, %d channel(s)",
+            // Log audio statistics
+            long sumAbsValues = 0;
+            int maxAbsValue = 0;
+            for (short sample : samples) {
+                int absValue = Math.abs(sample);
+                sumAbsValues += absValue;
+                maxAbsValue = Math.max(maxAbsValue, absValue);
+            }
+            double avgAbsValue = sumAbsValues / (double)samples.length;
+
+            Timber.d("Audio stats: avg amplitude=%.1f, max amplitude=%d, samples=%d",
+                    avgAbsValue, maxAbsValue, samples.length);
+            Timber.d("Using for fingerprinting: %d samples at %d Hz, %d channel(s)",
                     processedSamples.length, fingerprintSampleRate, fingerprintChannels);
 
-            // Create chromaprint context with standard AcoustID parameters
+            // Create chromaprint context with actual audio parameters
             long chromaprintCtx = NativeAudioEngine.createChromaprint(fingerprintSampleRate, fingerprintChannels);
             if (chromaprintCtx == 0) {
                 Timber.e("Failed to create chromaprint context");
@@ -194,6 +206,7 @@ public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProv
                 }
 
                 Timber.i("Generated fingerprint, querying AcoustID...");
+                Timber.d("Fingerprint: %s", fingerprint.substring(0, Math.min(100, fingerprint.length())) + "...");
 
                 // Recognize using API
                 RecognitionResult result = apiClient.recognize(fingerprint, FINGERPRINT_DURATION_SEC);
