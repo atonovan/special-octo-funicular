@@ -220,6 +220,23 @@ public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProv
      * AcoustID works best with 44100 Hz mono audio
      */
     private short[] prepareAudioForFingerprinting(short[] stereoSamples) {
+        // Check if audio is actually present (not silent)
+        long sumAbsValues = 0;
+        int maxAbsValue = 0;
+        for (short sample : stereoSamples) {
+            int absValue = Math.abs(sample);
+            sumAbsValues += absValue;
+            maxAbsValue = Math.max(maxAbsValue, absValue);
+        }
+        double avgAbsValue = sumAbsValues / (double)stereoSamples.length;
+
+        Timber.d("Audio stats: avg amplitude=%.1f, max amplitude=%d, samples=%d",
+                avgAbsValue, maxAbsValue, stereoSamples.length);
+
+        if (maxAbsValue < 100) {
+            Timber.w("Audio appears to be silent or very quiet (max amplitude=%d)", maxAbsValue);
+        }
+
         // Convert stereo to mono by averaging channels
         short[] monoSamples = new short[stereoSamples.length / channelCount];
 
