@@ -23,16 +23,19 @@ This fork of Vinyl Cast includes audio recognition powered by AcoustID, MusicBra
 
 ### 2. Configure the API Key
 
-Open the file:
-```
-app/src/main/java/tech/schober/vinylcast/acr/api/AudioRecognitionApiClient.java
-```
+1. Copy the example configuration file:
+   ```bash
+   cp local.properties.example local.properties
+   ```
 
-Find line 21 and replace `YOUR_API_KEY_HERE` with your actual API key:
+2. Open `local.properties` in the project root directory
 
-```java
-private static final String ACOUSTID_API_KEY = "your-actual-api-key-here";
-```
+3. Replace `YOUR_API_KEY_HERE` with your actual AcoustID API key:
+   ```properties
+   ACOUSTID_API_KEY=your-actual-api-key-here
+   ```
+
+**Note:** The `local.properties` file is git-ignored for security and will never be committed to version control.
 
 ### 3. Build and Run
 

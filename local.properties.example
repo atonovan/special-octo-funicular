@@ -1,0 +1,8 @@
+# Local Properties Configuration
+# Copy this file to 'local.properties' and fill in your actual values
+# IMPORTANT: local.properties is git-ignored and should NEVER be committed
+
+# AcoustID API Key for music recognition
+# Get your free API key at: https://acoustid.org/new-application
+# This key is used to identify songs via audio fingerprinting
+ACOUSTID_API_KEY=YOUR_API_KEY_HERE

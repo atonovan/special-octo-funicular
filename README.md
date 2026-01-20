@@ -32,6 +32,29 @@ This fork includes **automatic song recognition** powered by AcoustID, MusicBrai
 
 ---
 
+## :hammer_and_wrench: Developer Setup
+
+If you're building from source, follow these steps after cloning:
+
+1. **Initialize Git Submodules** (required for audio recognition):
+   ```bash
+   git submodule update --init --recursive
+   ```
+   This downloads Chromaprint and Oboe libraries needed for audio fingerprinting.
+
+2. **Configure AcoustID API Key** (required for music recognition):
+   ```bash
+   cp local.properties.example local.properties
+   ```
+   Edit `local.properties` and add your [AcoustID API key](https://acoustid.org/new-application).
+
+3. **Build in Android Studio**:
+   - Open the project in Android Studio
+   - Build → Rebuild Project
+   - Run on your device
+
+---
+
 #### Simple UI: Tap the record or play button to start streaming
 
 The record in the app spins when actively streaming.
