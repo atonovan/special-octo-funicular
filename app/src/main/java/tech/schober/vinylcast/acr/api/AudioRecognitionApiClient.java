@@ -65,6 +65,10 @@ public class AudioRecognitionApiClient {
      */
     public RecognitionResult recognize(String fingerprint, int duration) {
         try {
+            Timber.d("Making AcoustID API request: duration=%ds, fingerprint length=%d, API key=%s...",
+                    duration, fingerprint.length(),
+                    ACOUSTID_API_KEY.length() > 4 ? ACOUSTID_API_KEY.substring(0, 4) : "***");
+
             Call<AcoustIdResponse> call = acoustIdApi.lookup(
                     ACOUSTID_API_KEY,
                     fingerprint,
@@ -74,7 +78,16 @@ public class AudioRecognitionApiClient {
 
             Response<AcoustIdResponse> response = call.execute();
             if (!response.isSuccessful() || response.body() == null) {
-                Timber.e("AcoustID API request failed: %s", response.message());
+                String errorBody = "";
+                if (response.errorBody() != null) {
+                    try {
+                        errorBody = response.errorBody().string();
+                    } catch (Exception e) {
+                        errorBody = "[unable to read error body]";
+                    }
+                }
+                Timber.e("AcoustID API request failed: HTTP %d %s - %s",
+                        response.code(), response.message(), errorBody);
                 return null;
             }
 
