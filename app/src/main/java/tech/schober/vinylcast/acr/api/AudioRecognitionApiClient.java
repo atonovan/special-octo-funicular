@@ -92,6 +92,12 @@ public class AudioRecognitionApiClient {
             }
 
             AcoustIdResponse acoustIdResponse = response.body();
+
+            // Log the full API response for debugging
+            Timber.d("AcoustID API response: status=%s, results count=%d",
+                    acoustIdResponse.getStatus(),
+                    acoustIdResponse.getResults() != null ? acoustIdResponse.getResults().size() : 0);
+
             if (acoustIdResponse.getResults() == null || acoustIdResponse.getResults().isEmpty()) {
                 Timber.w("No recognition results found");
                 return null;
@@ -99,6 +105,11 @@ public class AudioRecognitionApiClient {
 
             // Get the first result with the highest score
             AcoustIdResponse.Result result = acoustIdResponse.getResults().get(0);
+            Timber.d("Top result: score=%.2f, id=%s, recordings count=%d",
+                    result.getScore(),
+                    result.getId(),
+                    result.getRecordings() != null ? result.getRecordings().size() : 0);
+
             if (result.getRecordings() == null || result.getRecordings().isEmpty()) {
                 Timber.w("No recordings found in result");
                 return null;
