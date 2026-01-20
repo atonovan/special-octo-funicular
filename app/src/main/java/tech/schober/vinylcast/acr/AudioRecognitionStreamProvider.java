@@ -161,8 +161,16 @@ public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProv
             Timber.i("Starting audio recognition...");
             notifyRecognitionInProgress();
 
-            // Create chromaprint context
-            long chromaprintCtx = NativeAudioEngine.createChromaprint(sampleRate, channelCount);
+            // Convert stereo to mono and resample to 44100 Hz for better AcoustID matching
+            short[] processedSamples = prepareAudioForFingerprinting(samples);
+            int fingerprintSampleRate = 44100;
+            int fingerprintChannels = 1;
+
+            Timber.d("Processed audio for fingerprinting: %d samples at %d Hz, %d channel(s)",
+                    processedSamples.length, fingerprintSampleRate, fingerprintChannels);
+
+            // Create chromaprint context with standard AcoustID parameters
+            long chromaprintCtx = NativeAudioEngine.createChromaprint(fingerprintSampleRate, fingerprintChannels);
             if (chromaprintCtx == 0) {
                 Timber.e("Failed to create chromaprint context");
                 notifyRecognitionFailed("Failed to create fingerprint");
@@ -171,7 +179,7 @@ public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProv
 
             try {
                 // Feed audio samples to chromaprint
-                if (!NativeAudioEngine.feedChromaprint(chromaprintCtx, samples, samples.length)) {
+                if (!NativeAudioEngine.feedChromaprint(chromaprintCtx, processedSamples, processedSamples.length)) {
                     Timber.e("Failed to feed chromaprint");
                     notifyRecognitionFailed("Failed to process audio");
                     return;
@@ -205,6 +213,60 @@ public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProv
             Timber.e(e, "Recognition failed");
             notifyRecognitionFailed(e.getMessage());
         }
+    }
+
+    /**
+     * Prepare audio for fingerprinting by converting to mono and resampling to 44100 Hz
+     * AcoustID works best with 44100 Hz mono audio
+     */
+    private short[] prepareAudioForFingerprinting(short[] stereoSamples) {
+        // Convert stereo to mono by averaging channels
+        short[] monoSamples = new short[stereoSamples.length / channelCount];
+
+        if (channelCount == 2) {
+            // Stereo to mono: average left and right channels
+            for (int i = 0; i < monoSamples.length; i++) {
+                int left = stereoSamples[i * 2];
+                int right = stereoSamples[i * 2 + 1];
+                monoSamples[i] = (short)((left + right) / 2);
+            }
+        } else {
+            // Already mono
+            monoSamples = stereoSamples;
+        }
+
+        // Simple resampling from 48000 Hz to 44100 Hz using linear interpolation
+        if (sampleRate == 48000) {
+            return resample48to44(monoSamples);
+        }
+
+        return monoSamples;
+    }
+
+    /**
+     * Resample from 48000 Hz to 44100 Hz using linear interpolation
+     */
+    private short[] resample48to44(short[] input48k) {
+        double ratio = 44100.0 / 48000.0;
+        int outputLength = (int)(input48k.length * ratio);
+        short[] output44k = new short[outputLength];
+
+        for (int i = 0; i < outputLength; i++) {
+            double srcPos = i / ratio;
+            int srcIndex = (int)srcPos;
+            double frac = srcPos - srcIndex;
+
+            if (srcIndex + 1 < input48k.length) {
+                // Linear interpolation
+                int sample1 = input48k[srcIndex];
+                int sample2 = input48k[srcIndex + 1];
+                output44k[i] = (short)(sample1 + frac * (sample2 - sample1));
+            } else {
+                output44k[i] = input48k[srcIndex];
+            }
+        }
+
+        return output44k;
     }
 
     private void notifyTrackRecognized(RecognitionResult result) {
