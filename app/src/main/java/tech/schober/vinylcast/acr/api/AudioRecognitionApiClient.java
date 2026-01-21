@@ -21,13 +21,17 @@ import timber.log.Timber;
  * Client for audio recognition APIs
  */
 public class AudioRecognitionApiClient {
-    // API key loaded from local.properties via BuildConfig
+    // API keys loaded from local.properties via BuildConfig
     // Get your own free API key from https://acoustid.org/new-application
+    // Get Discogs token from https://www.discogs.com/settings/developers
     private static final String ACOUSTID_API_KEY = BuildConfig.ACOUSTID_API_KEY;
+    private static final String DISCOGS_TOKEN = BuildConfig.DISCOGS_TOKEN;
     private static final String ACOUSTID_BASE_URL = "https://api.acoustid.org/";
+    private static final String DISCOGS_BASE_URL = "https://api.discogs.com/";
     private static final String ITUNES_BASE_URL = "https://itunes.apple.com/";
 
     private final AcoustIdApi acoustIdApi;
+    private final DiscogsApi discogsApi;
     private final ITunesApi iTunesApi;
 
     public AudioRecognitionApiClient() {
@@ -48,6 +52,12 @@ public class AudioRecognitionApiClient {
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
+        Retrofit discogsRetrofit = new Retrofit.Builder()
+                .baseUrl(DISCOGS_BASE_URL)
+                .client(client)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
         Retrofit iTunesRetrofit = new Retrofit.Builder()
                 .baseUrl(ITUNES_BASE_URL)
                 .client(client)
@@ -55,6 +65,7 @@ public class AudioRecognitionApiClient {
                 .build();
 
         acoustIdApi = acoustIdRetrofit.create(AcoustIdApi.class);
+        discogsApi = discogsRetrofit.create(DiscogsApi.class);
         iTunesApi = iTunesRetrofit.create(ITunesApi.class);
     }
 
@@ -169,6 +180,94 @@ public class AudioRecognitionApiClient {
 
         } catch (IOException e) {
             Timber.e(e, "Failed to recognize audio");
+            return null;
+        }
+    }
+
+    /**
+     * Recognize album from barcode using Discogs
+     * @param barcode UPC/EAN barcode from vinyl album
+     * @return Recognition result or null if failed
+     */
+    public RecognitionResult recognizeFromBarcode(String barcode) {
+        try {
+            Timber.i("Looking up barcode in Discogs: %s", barcode);
+
+            // Check if Discogs token is configured
+            if (DISCOGS_TOKEN == null || DISCOGS_TOKEN.equals("YOUR_DISCOGS_TOKEN_HERE") || DISCOGS_TOKEN.isEmpty()) {
+                Timber.e("Discogs token is not configured! Get one from https://www.discogs.com/settings/developers");
+                return null;
+            }
+
+            Call<tech.schober.vinylcast.acr.model.DiscogsResponse> call =
+                    discogsApi.searchByBarcode(barcode, "release", DISCOGS_TOKEN);
+            Response<tech.schober.vinylcast.acr.model.DiscogsResponse> response = call.execute();
+
+            if (!response.isSuccessful() || response.body() == null) {
+                Timber.e("Discogs API request failed: HTTP %d %s", response.code(), response.message());
+                return null;
+            }
+
+            tech.schober.vinylcast.acr.model.DiscogsResponse discogsResponse = response.body();
+            if (discogsResponse.getResults() == null || discogsResponse.getResults().isEmpty()) {
+                Timber.w("No Discogs results found for barcode: %s", barcode);
+                return null;
+            }
+
+            // Get the first result
+            tech.schober.vinylcast.acr.model.DiscogsResponse.Result result = discogsResponse.getResults().get(0);
+            String artist = result.getArtist();
+            String album = result.getAlbum();
+            String title = album; // For albums, title is the album name
+
+            Timber.i("Found on Discogs: %s - %s", artist, album);
+
+            RecognitionResult recognitionResult = new RecognitionResult(artist, album, title, null);
+
+            // Try to get artwork from Discogs first
+            if (result.getCoverImage() != null && !result.getCoverImage().isEmpty()) {
+                Bitmap artwork = downloadImage(result.getCoverImage());
+                if (artwork != null) {
+                    recognitionResult.setAlbumArtwork(artwork);
+                    Timber.i("Using Discogs cover image");
+                }
+            }
+
+            // If no Discogs artwork, try iTunes as fallback
+            if (recognitionResult.getAlbumArtwork() == null && artist != null && album != null) {
+                Timber.d("No Discogs artwork, trying iTunes...");
+                Bitmap artwork = fetchArtworkFromItunes(artist, album);
+                recognitionResult.setAlbumArtwork(artwork);
+            }
+
+            return recognitionResult;
+
+        } catch (IOException e) {
+            Timber.e(e, "Failed to recognize barcode");
+            return null;
+        }
+    }
+
+    /**
+     * Download image from URL
+     * @param url Image URL
+     * @return Bitmap or null if failed
+     */
+    private Bitmap downloadImage(String url) {
+        try {
+            okhttp3.Request request = new okhttp3.Request.Builder()
+                    .url(url)
+                    .build();
+
+            okhttp3.Response response = new OkHttpClient().newCall(request).execute();
+            if (!response.isSuccessful() || response.body() == null) {
+                return null;
+            }
+
+            InputStream inputStream = response.body().byteStream();
+            return BitmapFactory.decodeStream(inputStream);
+        } catch (IOException e) {
+            Timber.e(e, "Error downloading image");
             return null;
         }
     }

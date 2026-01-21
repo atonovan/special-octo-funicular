@@ -2,7 +2,13 @@
 # Copy this file to 'local.properties' and fill in your actual values
 # IMPORTANT: local.properties is git-ignored and should NEVER be committed
 
-# AcoustID API Key for music recognition
+# AcoustID API Key for music recognition (optional - for audio fingerprinting)
 # Get your free API key at: https://acoustid.org/new-application
 # This key is used to identify songs via audio fingerprinting
 ACOUSTID_API_KEY=YOUR_API_KEY_HERE
+
+# Discogs User Token for barcode lookup (required for barcode scanning)
+# Get your free token at: https://www.discogs.com/settings/developers
+# Click "Generate new token" under Personal access tokens
+# This token is used to look up vinyl albums by barcode
+DISCOGS_TOKEN=YOUR_DISCOGS_TOKEN_HERE
