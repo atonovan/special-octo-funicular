@@ -161,15 +161,16 @@ public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProv
             Timber.i("Starting audio recognition...");
             notifyRecognitionInProgress();
 
-            // Convert to 44.1kHz mono for AcoustID matching (database is primarily 44.1kHz)
+            // Use raw audio directly - Chromaprint handles resampling internally to 11025 Hz
+            // No need to manually resample from 48kHz to 44.1kHz (avoids potential artifacts)
             short[] processedSamples = prepareAudioForFingerprinting(samples);
-            int fingerprintSampleRate = 44100;
-            int fingerprintChannels = 1;
+            int fingerprintSampleRate = sampleRate;  // Use original sample rate (48000 Hz)
+            int fingerprintChannels = channelCount;  // Use original channels (2 for stereo)
 
             Timber.d("Using for fingerprinting: %d samples at %d Hz, %d channel(s)",
                     processedSamples.length, fingerprintSampleRate, fingerprintChannels);
 
-            // Create chromaprint context with standard AcoustID parameters
+            // Create chromaprint context - it will handle resampling internally
             long chromaprintCtx = NativeAudioEngine.createChromaprint(fingerprintSampleRate, fingerprintChannels);
             if (chromaprintCtx == 0) {
                 Timber.e("Failed to create chromaprint context");
@@ -217,74 +218,30 @@ public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProv
     }
 
     /**
-     * Prepare audio for fingerprinting by converting to mono and resampling to 44100 Hz
-     * AcoustID works best with 44100 Hz mono audio
+     * Prepare audio for fingerprinting - just validates audio levels
+     * Chromaprint handles all necessary resampling internally (to 11025 Hz)
+     * so we can feed it raw 48kHz stereo directly
      */
-    private short[] prepareAudioForFingerprinting(short[] stereoSamples) {
+    private short[] prepareAudioForFingerprinting(short[] samples) {
         // Check if audio is actually present (not silent)
         long sumAbsValues = 0;
         int maxAbsValue = 0;
-        for (short sample : stereoSamples) {
+        for (short sample : samples) {
             int absValue = Math.abs(sample);
             sumAbsValues += absValue;
             maxAbsValue = Math.max(maxAbsValue, absValue);
         }
-        double avgAbsValue = sumAbsValues / (double)stereoSamples.length;
+        double avgAbsValue = sumAbsValues / (double)samples.length;
 
-        Timber.d("Audio stats: avg amplitude=%.1f, max amplitude=%d, samples=%d",
-                avgAbsValue, maxAbsValue, stereoSamples.length);
+        Timber.d("Raw audio stats: avg amplitude=%.1f, max amplitude=%d, samples=%d",
+                avgAbsValue, maxAbsValue, samples.length);
 
         if (maxAbsValue < 100) {
             Timber.w("Audio appears to be silent or very quiet (max amplitude=%d)", maxAbsValue);
         }
 
-        // Convert stereo to mono by averaging channels
-        short[] monoSamples = new short[stereoSamples.length / channelCount];
-
-        if (channelCount == 2) {
-            // Stereo to mono: average left and right channels
-            for (int i = 0; i < monoSamples.length; i++) {
-                int left = stereoSamples[i * 2];
-                int right = stereoSamples[i * 2 + 1];
-                monoSamples[i] = (short)((left + right) / 2);
-            }
-        } else {
-            // Already mono
-            monoSamples = stereoSamples;
-        }
-
-        // Simple resampling from 48000 Hz to 44100 Hz using linear interpolation
-        if (sampleRate == 48000) {
-            return resample48to44(monoSamples);
-        }
-
-        return monoSamples;
-    }
-
-    /**
-     * Resample from 48000 Hz to 44100 Hz using linear interpolation
-     */
-    private short[] resample48to44(short[] input48k) {
-        double ratio = 44100.0 / 48000.0;
-        int outputLength = (int)(input48k.length * ratio);
-        short[] output44k = new short[outputLength];
-
-        for (int i = 0; i < outputLength; i++) {
-            double srcPos = i / ratio;
-            int srcIndex = (int)srcPos;
-            double frac = srcPos - srcIndex;
-
-            if (srcIndex + 1 < input48k.length) {
-                // Linear interpolation
-                int sample1 = input48k[srcIndex];
-                int sample2 = input48k[srcIndex + 1];
-                output44k[i] = (short)(sample1 + frac * (sample2 - sample1));
-            } else {
-                output44k[i] = input48k[srcIndex];
-            }
-        }
-
-        return output44k;
+        // Return raw samples - Chromaprint will handle resampling internally
+        return samples;
     }
 
     private void notifyTrackRecognized(RecognitionResult result) {
