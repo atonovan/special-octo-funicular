@@ -29,7 +29,6 @@ public class NowPlayingManager {
     private static final String KEY_ALBUM = "album";
     private static final String KEY_TITLE = "title";
     private static final String KEY_YEAR = "year";
-    private static final String KEY_PERSONNEL = "personnel";
     private static final String KEY_START_TIME = "start_time";
     private static final String KEY_HAS_ARTWORK = "has_artwork";
     private static final String KEY_TRACKLIST_JSON = "tracklist_json";
@@ -101,13 +100,6 @@ public class NowPlayingManager {
                 editor.remove(KEY_YEAR);
             }
 
-            // Save personnel
-            if (currentlyPlaying.getPersonnel() != null) {
-                editor.putString(KEY_PERSONNEL, currentlyPlaying.getPersonnel());
-            } else {
-                editor.remove(KEY_PERSONNEL);
-            }
-
             // Save start time
             editor.putLong(KEY_START_TIME, currentlyPlaying.getStartTimeMillis());
 
@@ -143,12 +135,6 @@ public class NowPlayingManager {
             // Load year
             if (prefs.contains(KEY_YEAR)) {
                 currentlyPlaying.setYear(prefs.getInt(KEY_YEAR, 0));
-            }
-
-            // Load personnel
-            String personnel = prefs.getString(KEY_PERSONNEL, null);
-            if (personnel != null) {
-                currentlyPlaying.setPersonnel(personnel);
             }
 
             // Load start time

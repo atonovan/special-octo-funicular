@@ -51,6 +51,8 @@
             android:gravity="center"
             android:layout_marginTop="32dp"
             android:layout_marginBottom="32dp"
+            android:background="#CC000000"
+            android:padding="16dp"
             app:layout_constraintTop_toBottomOf="@id/artwork_card"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -67,11 +69,7 @@
                 android:textColor="@android:color/white"
                 android:maxLines="2"
                 android:ellipsize="end"
-                android:gravity="center"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="2"
-                android:shadowRadius="4" />
+                android:gravity="center" />
 
             <!-- Artist name -->
             <TextView
@@ -83,11 +81,7 @@
                 android:textSize="20sp"
                 android:textColor="#E0FFFFFF"
                 android:maxLines="1"
-                android:ellipsize="end"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="2"
-                android:shadowRadius="4" />
+                android:ellipsize="end" />
 
             <!-- Year -->
             <TextView
@@ -98,11 +92,7 @@
                 android:text=""
                 android:textSize="16sp"
                 android:textColor="#C0FFFFFF"
-                android:visibility="gone"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="2"
-                android:shadowRadius="4" />
+                android:visibility="gone" />
 
             <!-- Current track (if track progress enabled) -->
             <TextView
@@ -117,29 +107,7 @@
                 android:visibility="gone"
                 android:gravity="center"
                 android:maxLines="2"
-                android:ellipsize="end"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="2"
-                android:shadowRadius="4" />
-
-            <!-- Personnel -->
-            <TextView
-                android:id="@+id/personnel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text=""
-                android:textSize="12sp"
-                android:textColor="#90FFFFFF"
-                android:visibility="gone"
-                android:gravity="center"
-                android:maxLines="3"
-                android:ellipsize="end"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="2"
-                android:shadowRadius="4" />
+                android:ellipsize="end" />
 
         </LinearLayout>
 

@@ -240,13 +240,6 @@ public class AudioRecognitionApiClient {
                         Timber.i("Album year: %d", details.getYear());
                     }
 
-                    // Set key personnel
-                    String personnel = details.getKeyPersonnel();
-                    if (personnel != null && !personnel.isEmpty()) {
-                        recognitionResult.setPersonnel(personnel);
-                        Timber.i("Key personnel: %s", personnel);
-                    }
-
                     // Set tracklist
                     if (details.getTracklist() != null && !details.getTracklist().isEmpty()) {
                         recognitionResult.setTracklist(details.getTracklist());

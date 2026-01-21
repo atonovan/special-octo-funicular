@@ -35,13 +35,11 @@ import timber.log.Timber;
  */
 public class NowPlayingFragment extends Fragment implements NowPlayingManager.NowPlayingListener {
     private View blurredBackground;
-    private View contentContainer;
     private ImageView albumArtwork;
     private TextView trackTitle;
     private TextView trackArtist;
     private TextView trackYear;
     private TextView currentTrack;
-    private TextView personnel;
 
     private NowPlayingManager nowPlayingManager;
     private SharedPreferences prefs;
@@ -66,13 +64,11 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
         View view = inflater.inflate(R.layout.fragment_now_playing, container, false);
 
         blurredBackground = view.findViewById(R.id.blurred_background);
-        contentContainer = view.findViewById(R.id.track_info_container);
         albumArtwork = view.findViewById(R.id.album_artwork);
         trackTitle = view.findViewById(R.id.track_title);
         trackArtist = view.findViewById(R.id.track_artist);
         trackYear = view.findViewById(R.id.track_year);
         currentTrack = view.findViewById(R.id.current_track);
-        personnel = view.findViewById(R.id.personnel);
 
         nowPlayingManager = NowPlayingManager.getInstance(requireContext());
         nowPlayingManager.addListener(this);
@@ -85,10 +81,8 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
         // Load current Now Playing info
         updateNowPlaying(nowPlayingManager.getNowPlaying());
 
-        // Start track progress updates if enabled
-        if (isTrackProgressEnabled()) {
-            trackUpdateHandler.post(trackUpdateRunnable);
-        }
+        // Start track progress updates
+        trackUpdateHandler.post(trackUpdateRunnable);
 
         return view;
     }
@@ -117,7 +111,6 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
             trackArtist.setText("Scan a barcode to get started");
             trackYear.setVisibility(View.GONE);
             currentTrack.setVisibility(View.GONE);
-            personnel.setVisibility(View.GONE);
             setBackgroundColor(0xFF1A1A1A); // Dark gray
             return;
         }
@@ -132,14 +125,6 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
             trackYear.setVisibility(View.VISIBLE);
         } else {
             trackYear.setVisibility(View.GONE);
-        }
-
-        // Update personnel
-        if (result.getPersonnel() != null && !result.getPersonnel().isEmpty()) {
-            personnel.setText(result.getPersonnel());
-            personnel.setVisibility(View.VISIBLE);
-        } else {
-            personnel.setVisibility(View.GONE);
         }
 
         // Update current track
@@ -270,17 +255,7 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
         }
 
         if (isFullscreen) {
-            // Hide UI elements
-            if (contentContainer != null) {
-                contentContainer.setVisibility(View.GONE);
-            }
-
-            // Hide action bar
-            if (getActivity() != null && ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar() != null) {
-                ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar().hide();
-            }
-
-            // Hide system UI (status bar, navigation bar)
+            // Hide system UI (status bar, navigation bar) but keep metadata visible
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 getActivity().getWindow().setDecorFitsSystemWindows(false);
                 WindowInsetsController controller = getActivity().getWindow().getInsetsController();
@@ -296,18 +271,8 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
                         View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
             }
 
-            Timber.d("Entered fullscreen mode");
+            Timber.d("Entered fullscreen mode - metadata still visible");
         } else {
-            // Show UI elements
-            if (contentContainer != null) {
-                contentContainer.setVisibility(View.VISIBLE);
-            }
-
-            // Show action bar
-            if (getActivity() != null && ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar() != null) {
-                ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar().show();
-            }
-
             // Show system UI
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 getActivity().getWindow().setDecorFitsSystemWindows(true);

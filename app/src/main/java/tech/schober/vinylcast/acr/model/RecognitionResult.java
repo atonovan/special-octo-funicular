@@ -16,7 +16,6 @@ public class RecognitionResult {
 
     // Extended metadata
     private Integer year;
-    private String personnel;
     private List<DiscogsReleaseDetails.Track> tracklist;
     private long startTimeMillis;  // When this album was set as Now Playing
 
@@ -66,14 +65,6 @@ public class RecognitionResult {
 
     public void setYear(Integer year) {
         this.year = year;
-    }
-
-    public String getPersonnel() {
-        return personnel;
-    }
-
-    public void setPersonnel(String personnel) {
-        this.personnel = personnel;
     }
 
     public List<DiscogsReleaseDetails.Track> getTracklist() {
