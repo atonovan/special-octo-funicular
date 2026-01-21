@@ -161,27 +161,15 @@ public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProv
             Timber.i("Starting audio recognition...");
             notifyRecognitionInProgress();
 
-            // Try using raw audio first without resampling to see if that works better
-            short[] processedSamples = samples;
-            int fingerprintSampleRate = sampleRate;  // Use original 48000 Hz
-            int fingerprintChannels = channelCount;  // Use original 2 channels
+            // Convert to 44.1kHz mono for AcoustID matching (database is primarily 44.1kHz)
+            short[] processedSamples = prepareAudioForFingerprinting(samples);
+            int fingerprintSampleRate = 44100;
+            int fingerprintChannels = 1;
 
-            // Log audio statistics
-            long sumAbsValues = 0;
-            int maxAbsValue = 0;
-            for (short sample : samples) {
-                int absValue = Math.abs(sample);
-                sumAbsValues += absValue;
-                maxAbsValue = Math.max(maxAbsValue, absValue);
-            }
-            double avgAbsValue = sumAbsValues / (double)samples.length;
-
-            Timber.d("Audio stats: avg amplitude=%.1f, max amplitude=%d, samples=%d",
-                    avgAbsValue, maxAbsValue, samples.length);
             Timber.d("Using for fingerprinting: %d samples at %d Hz, %d channel(s)",
                     processedSamples.length, fingerprintSampleRate, fingerprintChannels);
 
-            // Create chromaprint context with actual audio parameters
+            // Create chromaprint context with standard AcoustID parameters
             long chromaprintCtx = NativeAudioEngine.createChromaprint(fingerprintSampleRate, fingerprintChannels);
             if (chromaprintCtx == 0) {
                 Timber.e("Failed to create chromaprint context");
