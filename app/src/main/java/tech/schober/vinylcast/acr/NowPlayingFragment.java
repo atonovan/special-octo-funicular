@@ -69,7 +69,7 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
     private void updateNowPlaying(RecognitionResult result) {
         if (result == null) {
             // Show default/empty state
-            albumArtwork.setImageResource(R.drawable.ic_launcher_background);
+            albumArtwork.setImageResource(R.drawable.vinyl_orange_512);
             trackTitle.setText("No album selected");
             trackArtist.setText("Scan a barcode to get started");
             setBackgroundColor(0xFF1A1A1A); // Dark gray
@@ -85,7 +85,7 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
             albumArtwork.setImageBitmap(result.getAlbumArtwork());
             extractColorsAndSetBackground(result.getAlbumArtwork());
         } else {
-            albumArtwork.setImageResource(R.drawable.ic_launcher_background);
+            albumArtwork.setImageResource(R.drawable.vinyl_orange_512);
             setBackgroundColor(0xFF1A1A1A);
         }
     }
