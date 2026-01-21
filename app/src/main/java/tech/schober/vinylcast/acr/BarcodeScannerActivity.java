@@ -227,9 +227,10 @@ public class BarcodeScannerActivity extends AppCompatActivity {
                 NowPlayingManager.getInstance(this).setNowPlaying(result);
 
                 if (inCollection) {
-                    // Already in collection - just show info
+                    // Already in collection - show fun message
+                    String funMessage = getRandomCollectionMessage();
                     Toast.makeText(this,
-                            artist + " - " + album + "\n✓ Already in your collection\nSet as Now Playing",
+                            artist + " - " + album + "\n" + funMessage + "\n\nSet as Now Playing",
                             Toast.LENGTH_LONG).show();
                     finish();
                 } else {
@@ -238,6 +239,20 @@ public class BarcodeScannerActivity extends AppCompatActivity {
                 }
             });
         }).start();
+    }
+
+    private String getRandomCollectionMessage() {
+        String[] messages = {
+                "✓ Returning to an old favorite I see",
+                "✓ A classic from the crate",
+                "✓ Back for another spin",
+                "✓ This one never gets old",
+                "✓ Dust off those grooves",
+                "✓ Time for a revisit",
+                "✓ Already in the collection",
+                "✓ The needle knows this one well"
+        };
+        return messages[new java.util.Random().nextInt(messages.length)];
     }
 
     private void showAddToCollectionDialog(String artist, String album, String username, long releaseId) {

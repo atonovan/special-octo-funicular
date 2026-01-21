@@ -81,6 +81,13 @@
             app:iconSpaceReserved="false"
             app:defaultValue="true" />
 
+        <androidx.preference.SwitchPreferenceCompat
+            app:key="prefs_key_show_time_counter"
+            app:title="Show Time Counter"
+            app:summary="Display elapsed time and total album duration"
+            app:iconSpaceReserved="false"
+            app:defaultValue="true" />
+
     </PreferenceCategory>
 
     <PreferenceCategory
