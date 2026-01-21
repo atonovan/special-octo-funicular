@@ -25,10 +25,10 @@ public class AudioRecognitionApiClient {
     // Get your own free API key from https://acoustid.org/new-application
     private static final String ACOUSTID_API_KEY = BuildConfig.ACOUSTID_API_KEY;
     private static final String ACOUSTID_BASE_URL = "https://api.acoustid.org/";
-    private static final String COVERART_BASE_URL = "https://coverartarchive.org/";
+    private static final String ITUNES_BASE_URL = "https://itunes.apple.com/";
 
     private final AcoustIdApi acoustIdApi;
-    private final CoverArtApi coverArtApi;
+    private final ITunesApi iTunesApi;
 
     public AudioRecognitionApiClient() {
         // Log API key status (first few chars only for security)
@@ -48,13 +48,14 @@ public class AudioRecognitionApiClient {
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
-        Retrofit coverArtRetrofit = new Retrofit.Builder()
-                .baseUrl(COVERART_BASE_URL)
+        Retrofit iTunesRetrofit = new Retrofit.Builder()
+                .baseUrl(ITUNES_BASE_URL)
                 .client(client)
+                .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
         acoustIdApi = acoustIdRetrofit.create(AcoustIdApi.class);
-        coverArtApi = coverArtRetrofit.create(CoverArtApi.class);
+        iTunesApi = iTunesRetrofit.create(ITunesApi.class);
     }
 
     /**
@@ -70,16 +71,17 @@ public class AudioRecognitionApiClient {
 
             // Log full fingerprint for manual testing
             Timber.d("Full fingerprint: %s", fingerprint);
-            Timber.d("Manual test URL (GET): https://api.acoustid.org/v2/lookup?client=%s&duration=%d&meta=recordings+releases+artists&fingerprint=%s",
+            Timber.d("Manual test URL (GET): https://api.acoustid.org/v2/lookup?client=%s&duration=%d&meta=recordings+usermeta&fingerprint=%s",
                     ACOUSTID_API_KEY, duration, fingerprint.substring(0, Math.min(100, fingerprint.length())) + "...");
 
             // Use POST (recommended by AcoustID docs for long fingerprints)
-            // Request full metadata: recordings with nested artists and releases
+            // Request usermeta (user-submitted artist/title/album) - gives access to all 70M fingerprints
+            // instead of just the 20M with MusicBrainz recordings
             Call<AcoustIdResponse> call = acoustIdApi.lookup(
                     ACOUSTID_API_KEY,
                     fingerprint,
                     duration,
-                    "recordings releases artists"
+                    "recordings usermeta"
             );
 
             Response<AcoustIdResponse> response = call.execute();
@@ -111,37 +113,55 @@ public class AudioRecognitionApiClient {
 
             // Get the first result with the highest score
             AcoustIdResponse.Result result = acoustIdResponse.getResults().get(0);
-            Timber.d("Top result: score=%.2f, id=%s, recordings count=%d",
+            Timber.d("Top result: score=%.2f, id=%s, sources=%d",
                     result.getScore(),
                     result.getId(),
-                    result.getRecordings() != null ? result.getRecordings().size() : 0);
+                    result.getSources());
 
-            if (result.getRecordings() == null || result.getRecordings().isEmpty()) {
-                Timber.w("No recordings found in result");
+            String title = null;
+            String artist = null;
+            String album = null;
+
+            // Try to get metadata from recordings first (MusicBrainz data)
+            if (result.getRecordings() != null && !result.getRecordings().isEmpty()) {
+                AcoustIdResponse.Recording recording = result.getRecordings().get(0);
+                title = recording.getTitle();
+
+                if (recording.getArtists() != null && !recording.getArtists().isEmpty()) {
+                    artist = recording.getArtists().get(0).getName();
+                }
+
+                if (recording.getReleases() != null && !recording.getReleases().isEmpty()) {
+                    album = recording.getReleases().get(0).getTitle();
+                }
+
+                Timber.d("Got metadata from MusicBrainz: artist=%s, album=%s, title=%s", artist, album, title);
+            }
+
+            // If we didn't get metadata from MusicBrainz, try usermeta (user-submitted data)
+            if ((title == null || artist == null) && result.getRecordings() != null && !result.getRecordings().isEmpty()) {
+                AcoustIdResponse.Recording recording = result.getRecordings().get(0);
+                if (recording.getUsermetadata() != null && !recording.getUsermetadata().isEmpty()) {
+                    AcoustIdResponse.UserMeta userMeta = recording.getUsermetadata().get(0);
+                    if (title == null) title = userMeta.getTitle();
+                    if (artist == null) artist = userMeta.getArtist();
+                    if (album == null) album = userMeta.getAlbum();
+
+                    Timber.d("Got metadata from usermeta: artist=%s, album=%s, title=%s", artist, album, title);
+                }
+            }
+
+            // If we still don't have basic metadata, give up
+            if (title == null || artist == null) {
+                Timber.w("No usable metadata found (need at least title and artist)");
                 return null;
             }
 
-            AcoustIdResponse.Recording recording = result.getRecordings().get(0);
-            String title = recording.getTitle();
-            String artist = "";
-            String album = "";
-            String releaseId = "";
+            RecognitionResult recognitionResult = new RecognitionResult(artist, album, title, null);
 
-            if (recording.getArtists() != null && !recording.getArtists().isEmpty()) {
-                artist = recording.getArtists().get(0).getName();
-            }
-
-            if (recording.getReleases() != null && !recording.getReleases().isEmpty()) {
-                AcoustIdResponse.Release release = recording.getReleases().get(0);
-                album = release.getTitle();
-                releaseId = release.getId();
-            }
-
-            RecognitionResult recognitionResult = new RecognitionResult(artist, album, title, releaseId);
-
-            // Fetch album artwork if we have a release ID
-            if (releaseId != null && !releaseId.isEmpty()) {
-                Bitmap artwork = fetchAlbumArtwork(releaseId);
+            // Fetch album artwork from iTunes
+            if (artist != null && album != null) {
+                Bitmap artwork = fetchArtworkFromItunes(artist, album);
                 recognitionResult.setAlbumArtwork(artwork);
             }
 
@@ -154,25 +174,65 @@ public class AudioRecognitionApiClient {
     }
 
     /**
-     * Fetch album artwork from Cover Art Archive
-     * @param releaseId MusicBrainz release ID
+     * Fetch album artwork from iTunes Search API
+     * @param artist Artist name
+     * @param album Album name
      * @return Bitmap of album artwork or null if failed
      */
-    private Bitmap fetchAlbumArtwork(String releaseId) {
+    private Bitmap fetchArtworkFromItunes(String artist, String album) {
         try {
-            Call<ResponseBody> call = coverArtApi.getFrontCover(releaseId);
-            Response<ResponseBody> response = call.execute();
+            // Build search term from artist and album
+            String searchTerm = artist + " " + album;
+            Timber.d("Searching iTunes for artwork: %s", searchTerm);
+
+            Call<tech.schober.vinylcast.acr.model.ITunesResponse> call =
+                iTunesApi.searchAlbum(searchTerm, "album", 1);
+            Response<tech.schober.vinylcast.acr.model.ITunesResponse> response = call.execute();
 
             if (!response.isSuccessful() || response.body() == null) {
-                Timber.w("Failed to fetch album artwork for release: %s", releaseId);
+                Timber.w("iTunes search failed: HTTP %d", response.code());
                 return null;
             }
 
-            InputStream inputStream = response.body().byteStream();
-            return BitmapFactory.decodeStream(inputStream);
+            tech.schober.vinylcast.acr.model.ITunesResponse iTunesResponse = response.body();
+            if (iTunesResponse.getResultCount() == 0 || iTunesResponse.getResults().isEmpty()) {
+                Timber.w("No iTunes results for: %s", searchTerm);
+                return null;
+            }
+
+            // Get high-resolution artwork URL (1200x1200)
+            tech.schober.vinylcast.acr.model.ITunesResponse.Result result = iTunesResponse.getResults().get(0);
+            String artworkUrl = result.getArtworkUrl(1200);
+
+            if (artworkUrl == null) {
+                Timber.w("No artwork URL found in iTunes result");
+                return null;
+            }
+
+            Timber.d("Downloading artwork from: %s", artworkUrl);
+
+            // Download the artwork
+            okhttp3.Request request = new okhttp3.Request.Builder()
+                    .url(artworkUrl)
+                    .build();
+
+            okhttp3.Response artworkResponse = new OkHttpClient().newCall(request).execute();
+            if (!artworkResponse.isSuccessful() || artworkResponse.body() == null) {
+                Timber.w("Failed to download artwork: HTTP %d", artworkResponse.code());
+                return null;
+            }
+
+            InputStream inputStream = artworkResponse.body().byteStream();
+            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+            if (bitmap != null) {
+                Timber.i("Successfully fetched artwork: %dx%d", bitmap.getWidth(), bitmap.getHeight());
+            }
+
+            return bitmap;
 
         } catch (IOException e) {
-            Timber.e(e, "Error fetching album artwork");
+            Timber.e(e, "Error fetching iTunes artwork");
             return null;
         }
     }

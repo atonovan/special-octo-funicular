@@ -31,6 +31,9 @@ public class AcoustIdResponse {
         @SerializedName("recordings")
         private List<Recording> recordings;
 
+        @SerializedName("sources")
+        private int sources;
+
         public String getId() {
             return id;
         }
@@ -41,6 +44,33 @@ public class AcoustIdResponse {
 
         public List<Recording> getRecordings() {
             return recordings;
+        }
+
+        public int getSources() {
+            return sources;
+        }
+    }
+
+    public static class UserMeta {
+        @SerializedName("artist")
+        private String artist;
+
+        @SerializedName("title")
+        private String title;
+
+        @SerializedName("album")
+        private String album;
+
+        public String getArtist() {
+            return artist;
+        }
+
+        public String getTitle() {
+            return title;
+        }
+
+        public String getAlbum() {
+            return album;
         }
     }
 
@@ -57,6 +87,9 @@ public class AcoustIdResponse {
         @SerializedName("releases")
         private List<Release> releases;
 
+        @SerializedName("sources")
+        private List<UserMeta> usermetadata;
+
         public String getId() {
             return id;
         }
@@ -71,6 +104,10 @@ public class AcoustIdResponse {
 
         public List<Release> getReleases() {
             return releases;
+        }
+
+        public List<UserMeta> getUsermetadata() {
+            return usermetadata;
         }
     }
 
