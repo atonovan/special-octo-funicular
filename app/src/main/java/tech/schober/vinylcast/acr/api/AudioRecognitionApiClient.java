@@ -225,8 +225,56 @@ public class AudioRecognitionApiClient {
 
             RecognitionResult recognitionResult = new RecognitionResult(artist, album, title, null, discogsReleaseId);
 
-            // Try to get artwork from Discogs first
-            if (result.getCoverImage() != null && !result.getCoverImage().isEmpty()) {
+            // Fetch detailed release information (year, tracklist, personnel)
+            try {
+                Call<tech.schober.vinylcast.acr.model.DiscogsReleaseDetails> detailsCall =
+                        discogsApi.getReleaseDetails(discogsReleaseId, DISCOGS_TOKEN);
+                Response<tech.schober.vinylcast.acr.model.DiscogsReleaseDetails> detailsResponse = detailsCall.execute();
+
+                if (detailsResponse.isSuccessful() && detailsResponse.body() != null) {
+                    tech.schober.vinylcast.acr.model.DiscogsReleaseDetails details = detailsResponse.body();
+
+                    // Set year
+                    if (details.getYear() > 0) {
+                        recognitionResult.setYear(details.getYear());
+                        Timber.i("Album year: %d", details.getYear());
+                    }
+
+                    // Set key personnel
+                    String personnel = details.getKeyPersonnel();
+                    if (personnel != null && !personnel.isEmpty()) {
+                        recognitionResult.setPersonnel(personnel);
+                        Timber.i("Key personnel: %s", personnel);
+                    }
+
+                    // Set tracklist
+                    if (details.getTracklist() != null && !details.getTracklist().isEmpty()) {
+                        recognitionResult.setTracklist(details.getTracklist());
+                        Timber.i("Tracklist: %d tracks", details.getTracklist().size());
+                    }
+
+                    // Set start time for track progress
+                    recognitionResult.setStartTimeMillis(System.currentTimeMillis());
+
+                    // Use higher quality artwork from detailed response if available
+                    String bestImageUrl = details.getBestImageUrl();
+                    if (bestImageUrl != null && !bestImageUrl.isEmpty()) {
+                        Bitmap artwork = downloadImage(bestImageUrl);
+                        if (artwork != null) {
+                            recognitionResult.setAlbumArtwork(artwork);
+                            Timber.i("Using Discogs high-quality cover image");
+                        }
+                    }
+                } else {
+                    Timber.w("Failed to fetch detailed release info: HTTP %d", detailsResponse.code());
+                }
+            } catch (IOException e) {
+                Timber.w(e, "Failed to fetch detailed release info, continuing with basic info");
+            }
+
+            // Try to get artwork from Discogs first if not already set
+            if (recognitionResult.getAlbumArtwork() == null &&
+                result.getCoverImage() != null && !result.getCoverImage().isEmpty()) {
                 Bitmap artwork = downloadImage(result.getCoverImage());
                 if (artwork != null) {
                     recognitionResult.setAlbumArtwork(artwork);

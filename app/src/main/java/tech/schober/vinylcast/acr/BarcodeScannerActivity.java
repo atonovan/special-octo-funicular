@@ -71,6 +71,11 @@ public class BarcodeScannerActivity extends AppCompatActivity {
                 .build();
         barcodeScanner = BarcodeScanning.getClient(options);
 
+        // Enable back navigation
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+
         // Check camera permission
         if (ContextCompat.checkSelfPermission(this, CAMERA_PERMISSION)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -95,6 +100,12 @@ public class BarcodeScannerActivity extends AppCompatActivity {
                 finish();
             }
         }
+    }
+
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
     }
 
     private void startCamera() {

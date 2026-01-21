@@ -1,12 +1,20 @@
 package tech.schober.vinylcast.acr;
 
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.RenderEffect;
+import android.graphics.Shader;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -14,8 +22,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.palette.graphics.Palette;
+import androidx.preference.PreferenceManager;
 
 import tech.schober.vinylcast.R;
+import tech.schober.vinylcast.acr.model.DiscogsReleaseDetails;
 import tech.schober.vinylcast.acr.model.RecognitionResult;
 import timber.log.Timber;
 
@@ -25,11 +35,29 @@ import timber.log.Timber;
  */
 public class NowPlayingFragment extends Fragment implements NowPlayingManager.NowPlayingListener {
     private View blurredBackground;
+    private View contentContainer;
     private ImageView albumArtwork;
     private TextView trackTitle;
     private TextView trackArtist;
+    private TextView trackYear;
+    private TextView currentTrack;
+    private TextView personnel;
 
     private NowPlayingManager nowPlayingManager;
+    private SharedPreferences prefs;
+    private Handler trackUpdateHandler = new Handler(Looper.getMainLooper());
+    private boolean isFullscreen = false;
+
+    // Update current track every 5 seconds
+    private static final int TRACK_UPDATE_INTERVAL_MS = 5000;
+
+    private final Runnable trackUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateCurrentTrack();
+            trackUpdateHandler.postDelayed(this, TRACK_UPDATE_INTERVAL_MS);
+        }
+    };
 
     @Nullable
     @Override
@@ -38,15 +66,29 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
         View view = inflater.inflate(R.layout.fragment_now_playing, container, false);
 
         blurredBackground = view.findViewById(R.id.blurred_background);
+        contentContainer = view.findViewById(R.id.track_info_container);
         albumArtwork = view.findViewById(R.id.album_artwork);
         trackTitle = view.findViewById(R.id.track_title);
         trackArtist = view.findViewById(R.id.track_artist);
+        trackYear = view.findViewById(R.id.track_year);
+        currentTrack = view.findViewById(R.id.current_track);
+        personnel = view.findViewById(R.id.personnel);
 
         nowPlayingManager = NowPlayingManager.getInstance(requireContext());
         nowPlayingManager.addListener(this);
 
+        prefs = PreferenceManager.getDefaultSharedPreferences(requireContext());
+
+        // Add tap gesture for fullscreen toggle
+        albumArtwork.setOnClickListener(v -> toggleFullscreen());
+
         // Load current Now Playing info
         updateNowPlaying(nowPlayingManager.getNowPlaying());
+
+        // Start track progress updates if enabled
+        if (isTrackProgressEnabled()) {
+            trackUpdateHandler.post(trackUpdateRunnable);
+        }
 
         return view;
     }
@@ -54,6 +96,7 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        trackUpdateHandler.removeCallbacks(trackUpdateRunnable);
         if (nowPlayingManager != null) {
             nowPlayingManager.removeListener(this);
         }
@@ -72,6 +115,9 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
             albumArtwork.setImageResource(R.drawable.vinyl_orange_512);
             trackTitle.setText("No album selected");
             trackArtist.setText("Scan a barcode to get started");
+            trackYear.setVisibility(View.GONE);
+            currentTrack.setVisibility(View.GONE);
+            personnel.setVisibility(View.GONE);
             setBackgroundColor(0xFF1A1A1A); // Dark gray
             return;
         }
@@ -79,6 +125,25 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
         // Update text
         trackTitle.setText(result.getAlbum() != null ? result.getAlbum() : "Unknown Album");
         trackArtist.setText(result.getArtist() != null ? result.getArtist() : "Unknown Artist");
+
+        // Update year
+        if (result.getYear() != null && result.getYear() > 0) {
+            trackYear.setText(String.valueOf(result.getYear()));
+            trackYear.setVisibility(View.VISIBLE);
+        } else {
+            trackYear.setVisibility(View.GONE);
+        }
+
+        // Update personnel
+        if (result.getPersonnel() != null && !result.getPersonnel().isEmpty()) {
+            personnel.setText(result.getPersonnel());
+            personnel.setVisibility(View.VISIBLE);
+        } else {
+            personnel.setVisibility(View.GONE);
+        }
+
+        // Update current track
+        updateCurrentTrack();
 
         // Update artwork and extract colors
         if (result.getAlbumArtwork() != null) {
@@ -88,6 +153,29 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
             albumArtwork.setImageResource(R.drawable.vinyl_orange_512);
             setBackgroundColor(0xFF1A1A1A);
         }
+    }
+
+    private void updateCurrentTrack() {
+        RecognitionResult result = nowPlayingManager.getNowPlaying();
+        if (result == null) {
+            currentTrack.setVisibility(View.GONE);
+            return;
+        }
+
+        boolean trackProgressEnabled = isTrackProgressEnabled();
+        DiscogsReleaseDetails.Track track = result.getCurrentTrack(trackProgressEnabled);
+
+        if (track != null && trackProgressEnabled) {
+            String trackInfo = "Now Playing: " + track.getPosition() + ". " + track.getTitle();
+            currentTrack.setText(trackInfo);
+            currentTrack.setVisibility(View.VISIBLE);
+        } else {
+            currentTrack.setVisibility(View.GONE);
+        }
+    }
+
+    private boolean isTrackProgressEnabled() {
+        return prefs.getBoolean("prefs_key_track_progress_enabled", true);
     }
 
     private void extractColorsAndSetBackground(Bitmap bitmap) {
@@ -115,7 +203,30 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
                     primaryColor & 0xFFFFFF, darkerColor & 0xFFFFFF);
 
             setGradientBackground(darkerColor, primaryColor);
+
+            // Apply blur effect on Android 12+ for frosted glass look
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                applyBlurEffect(bitmap);
+            }
         });
+    }
+
+    private void applyBlurEffect(Bitmap bitmap) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                // Create blurred version of the artwork for the background
+                RenderEffect blurEffect = RenderEffect.createBlurEffect(
+                        50f, 50f, Shader.TileMode.CLAMP);
+                blurredBackground.setRenderEffect(blurEffect);
+
+                // Set the artwork as background (will be blurred by RenderEffect)
+                blurredBackground.setBackground(new BitmapDrawable(getResources(), bitmap));
+
+                Timber.d("Applied RenderEffect blur for frosted glass effect");
+            } catch (Exception e) {
+                Timber.w(e, "Failed to apply blur effect, using gradient fallback");
+            }
+        }
     }
 
     private int darkenColor(int color, float factor) {
@@ -130,15 +241,86 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
     }
 
     private void setBackgroundColor(int color) {
+        blurredBackground.setBackground(null); // Clear any render effects
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            blurredBackground.setRenderEffect(null);
+        }
         blurredBackground.setBackgroundColor(color);
     }
 
     private void setGradientBackground(int startColor, int endColor) {
+        // Clear render effect if using gradient
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            blurredBackground.setRenderEffect(null);
+        }
+
         GradientDrawable gradient = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{startColor, endColor}
         );
         gradient.setCornerRadius(0f);
         blurredBackground.setBackground(gradient);
+    }
+
+    private void toggleFullscreen() {
+        isFullscreen = !isFullscreen;
+
+        if (getActivity() == null) {
+            return;
+        }
+
+        if (isFullscreen) {
+            // Hide UI elements
+            if (contentContainer != null) {
+                contentContainer.setVisibility(View.GONE);
+            }
+
+            // Hide action bar
+            if (getActivity() != null && ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar() != null) {
+                ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar().hide();
+            }
+
+            // Hide system UI (status bar, navigation bar)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                getActivity().getWindow().setDecorFitsSystemWindows(false);
+                WindowInsetsController controller = getActivity().getWindow().getInsetsController();
+                if (controller != null) {
+                    controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                    controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                }
+            } else {
+                // For older Android versions
+                getActivity().getWindow().getDecorView().setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_FULLSCREEN |
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+            }
+
+            Timber.d("Entered fullscreen mode");
+        } else {
+            // Show UI elements
+            if (contentContainer != null) {
+                contentContainer.setVisibility(View.VISIBLE);
+            }
+
+            // Show action bar
+            if (getActivity() != null && ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar() != null) {
+                ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar().show();
+            }
+
+            // Show system UI
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                getActivity().getWindow().setDecorFitsSystemWindows(true);
+                WindowInsetsController controller = getActivity().getWindow().getInsetsController();
+                if (controller != null) {
+                    controller.show(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                }
+            } else {
+                getActivity().getWindow().getDecorView().setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_VISIBLE);
+            }
+
+            Timber.d("Exited fullscreen mode");
+        }
     }
 }

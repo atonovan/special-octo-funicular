@@ -5,12 +5,17 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
+import tech.schober.vinylcast.acr.model.DiscogsReleaseDetails;
 import tech.schober.vinylcast.acr.model.RecognitionResult;
 import timber.log.Timber;
 
@@ -23,13 +28,18 @@ public class NowPlayingManager {
     private static final String KEY_ARTIST = "artist";
     private static final String KEY_ALBUM = "album";
     private static final String KEY_TITLE = "title";
+    private static final String KEY_YEAR = "year";
+    private static final String KEY_PERSONNEL = "personnel";
+    private static final String KEY_START_TIME = "start_time";
     private static final String KEY_HAS_ARTWORK = "has_artwork";
+    private static final String KEY_TRACKLIST_JSON = "tracklist_json";
     private static final String ARTWORK_FILENAME = "now_playing_artwork.jpg";
 
     private static NowPlayingManager instance;
     private final Context context;
     private final SharedPreferences prefs;
     private final List<NowPlayingListener> listeners = new ArrayList<>();
+    private final Gson gson = new Gson();
 
     private RecognitionResult currentlyPlaying;
 
@@ -84,6 +94,31 @@ public class NowPlayingManager {
             editor.putString(KEY_ALBUM, currentlyPlaying.getAlbum());
             editor.putString(KEY_TITLE, currentlyPlaying.getTitle());
 
+            // Save year
+            if (currentlyPlaying.getYear() != null) {
+                editor.putInt(KEY_YEAR, currentlyPlaying.getYear());
+            } else {
+                editor.remove(KEY_YEAR);
+            }
+
+            // Save personnel
+            if (currentlyPlaying.getPersonnel() != null) {
+                editor.putString(KEY_PERSONNEL, currentlyPlaying.getPersonnel());
+            } else {
+                editor.remove(KEY_PERSONNEL);
+            }
+
+            // Save start time
+            editor.putLong(KEY_START_TIME, currentlyPlaying.getStartTimeMillis());
+
+            // Save tracklist as JSON
+            if (currentlyPlaying.getTracklist() != null && !currentlyPlaying.getTracklist().isEmpty()) {
+                String tracklistJson = gson.toJson(currentlyPlaying.getTracklist());
+                editor.putString(KEY_TRACKLIST_JSON, tracklistJson);
+            } else {
+                editor.remove(KEY_TRACKLIST_JSON);
+            }
+
             // Save artwork to file
             if (currentlyPlaying.getAlbumArtwork() != null) {
                 saveArtworkToFile(currentlyPlaying.getAlbumArtwork());
@@ -104,6 +139,33 @@ public class NowPlayingManager {
 
         if (artist != null && album != null) {
             currentlyPlaying = new RecognitionResult(artist, album, title, null);
+
+            // Load year
+            if (prefs.contains(KEY_YEAR)) {
+                currentlyPlaying.setYear(prefs.getInt(KEY_YEAR, 0));
+            }
+
+            // Load personnel
+            String personnel = prefs.getString(KEY_PERSONNEL, null);
+            if (personnel != null) {
+                currentlyPlaying.setPersonnel(personnel);
+            }
+
+            // Load start time
+            long startTime = prefs.getLong(KEY_START_TIME, 0);
+            currentlyPlaying.setStartTimeMillis(startTime);
+
+            // Load tracklist from JSON
+            String tracklistJson = prefs.getString(KEY_TRACKLIST_JSON, null);
+            if (tracklistJson != null) {
+                try {
+                    Type tracklistType = new TypeToken<List<DiscogsReleaseDetails.Track>>(){}.getType();
+                    List<DiscogsReleaseDetails.Track> tracklist = gson.fromJson(tracklistJson, tracklistType);
+                    currentlyPlaying.setTracklist(tracklist);
+                } catch (Exception e) {
+                    Timber.w(e, "Failed to parse tracklist JSON");
+                }
+            }
 
             if (hasArtwork) {
                 Bitmap artwork = loadArtworkFromFile();

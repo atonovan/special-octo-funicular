@@ -15,6 +15,11 @@ public class NowPlayingActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_now_playing);
 
+        // Enable back navigation
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+
         // Add NowPlayingFragment
         if (savedInstanceState == null) {
             getSupportFragmentManager()
@@ -22,5 +27,11 @@ public class NowPlayingActivity extends AppCompatActivity {
                     .replace(R.id.fragment_container, new NowPlayingFragment())
                     .commit();
         }
+    }
+
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
     }
 }

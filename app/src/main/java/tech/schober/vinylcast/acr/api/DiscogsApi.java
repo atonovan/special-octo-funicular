@@ -8,6 +8,7 @@ import retrofit2.http.Path;
 import retrofit2.http.Query;
 import tech.schober.vinylcast.acr.model.DiscogsCollectionResponse;
 import tech.schober.vinylcast.acr.model.DiscogsIdentityResponse;
+import tech.schober.vinylcast.acr.model.DiscogsReleaseDetails;
 import tech.schober.vinylcast.acr.model.DiscogsResponse;
 
 /**
@@ -27,6 +28,18 @@ public interface DiscogsApi {
     Call<DiscogsResponse> searchByBarcode(
             @Query("barcode") String barcode,
             @Query("type") String type,
+            @Query("token") String token
+    );
+
+    /**
+     * Get detailed release information including tracklist and personnel
+     * @param releaseId Discogs release ID
+     * @param token User token for authentication
+     * @return Detailed release information
+     */
+    @GET("releases/{release_id}")
+    Call<DiscogsReleaseDetails> getReleaseDetails(
+            @Path("release_id") long releaseId,
             @Query("token") String token
     );
 

@@ -70,6 +70,20 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        app:key="prefs_key_category_now_playing"
+        app:title="Now Playing"
+        app:iconSpaceReserved="false" >
+
+        <androidx.preference.SwitchPreferenceCompat
+            app:key="prefs_key_track_progress_enabled"
+            app:title="Track Progress Estimation"
+            app:summary="Estimate current track based on elapsed time since album started"
+            app:iconSpaceReserved="false"
+            app:defaultValue="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         app:key="@string/prefs_key_category_about"
         app:title="@string/prefs_title_category_about"
         app:iconSpaceReserved="false" >
