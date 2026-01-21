@@ -65,10 +65,16 @@ public class AudioRecognitionApiClient {
      */
     public RecognitionResult recognize(String fingerprint, int duration) {
         try {
-            Timber.d("Making AcoustID API request: duration=%ds, fingerprint length=%d, API key=%s...",
-                    duration, fingerprint.length(),
-                    ACOUSTID_API_KEY.length() > 4 ? ACOUSTID_API_KEY.substring(0, 4) : "***");
+            Timber.i("Making AcoustID API POST request: duration=%ds, fingerprint length=%d",
+                    duration, fingerprint.length());
 
+            // Log full fingerprint for manual testing
+            Timber.d("Full fingerprint: %s", fingerprint);
+            Timber.d("Manual test URL (GET): https://api.acoustid.org/v2/lookup?client=%s&duration=%d&meta=recordings+releases+artists&fingerprint=%s",
+                    ACOUSTID_API_KEY, duration, fingerprint.substring(0, Math.min(100, fingerprint.length())) + "...");
+
+            // Use POST (recommended by AcoustID docs for long fingerprints)
+            // Request full metadata: recordings with nested artists and releases
             Call<AcoustIdResponse> call = acoustIdApi.lookup(
                     ACOUSTID_API_KEY,
                     fingerprint,

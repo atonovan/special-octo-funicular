@@ -1,8 +1,9 @@
 package tech.schober.vinylcast.acr.api;
 
 import retrofit2.Call;
-import retrofit2.http.GET;
-import retrofit2.http.Query;
+import retrofit2.http.Field;
+import retrofit2.http.FormUrlEncoded;
+import retrofit2.http.POST;
 import tech.schober.vinylcast.acr.model.AcoustIdResponse;
 
 /**
@@ -11,17 +12,19 @@ import tech.schober.vinylcast.acr.model.AcoustIdResponse;
 public interface AcoustIdApi {
     /**
      * Submit fingerprint to AcoustID for recognition
+     * Uses POST instead of GET because fingerprints can be very long (3000+ chars)
      * @param client API client key
      * @param fingerprint Chromaprint fingerprint
      * @param duration Duration of the audio sample in seconds
      * @param meta Additional metadata to include in response (recordings, releases, artists)
      * @return AcoustID response with matching recordings
      */
-    @GET("v2/lookup")
+    @FormUrlEncoded
+    @POST("v2/lookup")
     Call<AcoustIdResponse> lookup(
-            @Query("client") String client,
-            @Query("fingerprint") String fingerprint,
-            @Query("duration") int duration,
-            @Query("meta") String meta
+            @Field("client") String client,
+            @Field("fingerprint") String fingerprint,
+            @Field("duration") int duration,
+            @Field("meta") String meta
     );
 }
