@@ -43,6 +43,12 @@
             android:screenOrientation="portrait">
         </activity>
 
+        <activity
+            android:name=".acr.NowPlayingActivity"
+            android:label="Now Playing"
+            android:theme="@style/AppTheme">
+        </activity>
+
         <service
             android:name=".VinylCastService"
             android:enabled="true"

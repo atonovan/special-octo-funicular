@@ -182,7 +182,7 @@ public class BarcodeScannerActivity extends AppCompatActivity {
 
             if (result == null) {
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "Album not found in database", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Barcode not found in Discogs database", Toast.LENGTH_SHORT).show();
                     instructionText.setText("Align barcode within frame");
                     isProcessing = false;
                 });
@@ -195,12 +195,14 @@ public class BarcodeScannerActivity extends AppCompatActivity {
 
             Timber.i("Album found: %s - %s (Release ID: %s)", artist, album, discogsReleaseId);
 
+            runOnUiThread(() -> instructionText.setText("Checking collection..."));
+
             // Get username and check collection
             String username = apiClient.getDiscogsUsername();
             if (username == null || discogsReleaseId == null) {
                 runOnUiThread(() -> {
                     Toast.makeText(this,
-                            artist + " - " + album,
+                            "Found: " + artist + " - " + album,
                             Toast.LENGTH_LONG).show();
                     finish();
                 });
@@ -210,10 +212,13 @@ public class BarcodeScannerActivity extends AppCompatActivity {
             boolean inCollection = apiClient.isInCollection(username, discogsReleaseId);
 
             runOnUiThread(() -> {
+                // Save to Now Playing regardless of collection status
+                NowPlayingManager.getInstance(this).setNowPlaying(result);
+
                 if (inCollection) {
                     // Already in collection - just show info
                     Toast.makeText(this,
-                            artist + " - " + album + "\n✓ Already in your collection",
+                            artist + " - " + album + "\n✓ Already in your collection\nSet as Now Playing",
                             Toast.LENGTH_LONG).show();
                     finish();
                 } else {
@@ -225,6 +230,7 @@ public class BarcodeScannerActivity extends AppCompatActivity {
     }
 
     private void showAddToCollectionDialog(String artist, String album, String username, long releaseId) {
+
         new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle("Add to Discogs Collection?")
                 .setMessage(artist + " - " + album + "\n\nThis album is not in your Discogs collection yet.")
@@ -235,7 +241,7 @@ public class BarcodeScannerActivity extends AppCompatActivity {
                         runOnUiThread(() -> {
                             if (success) {
                                 Toast.makeText(this,
-                                        "Added to your Discogs collection!",
+                                        "Added to your Discogs collection!\nSet as Now Playing",
                                         Toast.LENGTH_LONG).show();
                             } else {
                                 Toast.makeText(this,
