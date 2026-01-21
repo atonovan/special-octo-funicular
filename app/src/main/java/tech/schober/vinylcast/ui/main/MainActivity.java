@@ -122,6 +122,9 @@ public class MainActivity extends VinylCastActivity implements VinylCastService.
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
         switch (item.getItemId()) {
+            case R.id.menu_scan_barcode:
+                startActivity(new Intent(this, tech.schober.vinylcast.acr.BarcodeScannerActivity.class));
+                return true;
             case R.id.menu_settings:
                 startActivity(new Intent(this, SettingsActivity.class));
                 return true;

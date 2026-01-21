@@ -36,6 +36,12 @@
             android:label="Settings">
         </activity>
 
+        <activity
+            android:name=".acr.BarcodeScannerActivity"
+            android:label="Scan Barcode"
+            android:screenOrientation="portrait">
+        </activity>
+
         <service
             android:name=".VinylCastService"
             android:enabled="true"

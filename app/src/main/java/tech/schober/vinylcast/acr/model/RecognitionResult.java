@@ -9,14 +9,20 @@ public class RecognitionResult {
     private final String artist;
     private final String album;
     private final String title;
-    private final String releaseId;
+    private final String releaseId;  // MusicBrainz release ID (String)
+    private final Long discogsReleaseId;  // Discogs release ID (Long)
     private Bitmap albumArtwork;
 
     public RecognitionResult(String artist, String album, String title, String releaseId) {
+        this(artist, album, title, releaseId, null);
+    }
+
+    public RecognitionResult(String artist, String album, String title, String releaseId, Long discogsReleaseId) {
         this.artist = artist;
         this.album = album;
         this.title = title;
         this.releaseId = releaseId;
+        this.discogsReleaseId = discogsReleaseId;
     }
 
     public String getArtist() {
@@ -33,6 +39,10 @@ public class RecognitionResult {
 
     public String getReleaseId() {
         return releaseId;
+    }
+
+    public Long getDiscogsReleaseId() {
+        return discogsReleaseId;
     }
 
     public Bitmap getAlbumArtwork() {

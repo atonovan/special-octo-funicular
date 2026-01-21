@@ -180,21 +180,80 @@ public class BarcodeScannerActivity extends AppCompatActivity {
         new Thread(() -> {
             RecognitionResult result = apiClient.recognizeFromBarcode(barcode);
 
-            runOnUiThread(() -> {
-                if (result != null) {
-                    Timber.i("Album found: %s - %s", result.getArtist(), result.getAlbum());
-                    Toast.makeText(this,
-                            result.getArtist() + " - " + result.getAlbum(),
-                            Toast.LENGTH_LONG).show();
-                    // TODO: Return result to calling activity or show details
-                    finish();
-                } else {
+            if (result == null) {
+                runOnUiThread(() -> {
                     Toast.makeText(this, "Album not found in database", Toast.LENGTH_SHORT).show();
                     instructionText.setText("Align barcode within frame");
                     isProcessing = false;
+                });
+                return;
+            }
+
+            final String artist = result.getArtist();
+            final String album = result.getAlbum();
+            final Long discogsReleaseId = result.getDiscogsReleaseId();
+
+            Timber.i("Album found: %s - %s (Release ID: %s)", artist, album, discogsReleaseId);
+
+            // Get username and check collection
+            String username = apiClient.getDiscogsUsername();
+            if (username == null || discogsReleaseId == null) {
+                runOnUiThread(() -> {
+                    Toast.makeText(this,
+                            artist + " - " + album,
+                            Toast.LENGTH_LONG).show();
+                    finish();
+                });
+                return;
+            }
+
+            boolean inCollection = apiClient.isInCollection(username, discogsReleaseId);
+
+            runOnUiThread(() -> {
+                if (inCollection) {
+                    // Already in collection - just show info
+                    Toast.makeText(this,
+                            artist + " - " + album + "\n✓ Already in your collection",
+                            Toast.LENGTH_LONG).show();
+                    finish();
+                } else {
+                    // Not in collection - offer to add
+                    showAddToCollectionDialog(artist, album, username, discogsReleaseId);
                 }
             });
         }).start();
+    }
+
+    private void showAddToCollectionDialog(String artist, String album, String username, long releaseId) {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Add to Discogs Collection?")
+                .setMessage(artist + " - " + album + "\n\nThis album is not in your Discogs collection yet.")
+                .setPositiveButton("Add to Collection", (dialog, which) -> {
+                    // Add to collection in background
+                    new Thread(() -> {
+                        boolean success = apiClient.addToCollection(username, releaseId);
+                        runOnUiThread(() -> {
+                            if (success) {
+                                Toast.makeText(this,
+                                        "Added to your Discogs collection!",
+                                        Toast.LENGTH_LONG).show();
+                            } else {
+                                Toast.makeText(this,
+                                        "Failed to add to collection",
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                            finish();
+                        });
+                    }).start();
+                })
+                .setNegativeButton("Skip", (dialog, which) -> {
+                    Toast.makeText(this,
+                            artist + " - " + album,
+                            Toast.LENGTH_SHORT).show();
+                    finish();
+                })
+                .setOnCancelListener(dialog -> finish())
+                .show();
     }
 
     @Override

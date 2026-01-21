@@ -219,10 +219,11 @@ public class AudioRecognitionApiClient {
             String artist = result.getArtist();
             String album = result.getAlbum();
             String title = album; // For albums, title is the album name
+            long discogsReleaseId = result.getId();
 
-            Timber.i("Found on Discogs: %s - %s", artist, album);
+            Timber.i("Found on Discogs: %s - %s (Release ID: %d)", artist, album, discogsReleaseId);
 
-            RecognitionResult recognitionResult = new RecognitionResult(artist, album, title, null);
+            RecognitionResult recognitionResult = new RecognitionResult(artist, album, title, null, discogsReleaseId);
 
             // Try to get artwork from Discogs first
             if (result.getCoverImage() != null && !result.getCoverImage().isEmpty()) {
@@ -333,6 +334,110 @@ public class AudioRecognitionApiClient {
         } catch (IOException e) {
             Timber.e(e, "Error fetching iTunes artwork");
             return null;
+        }
+    }
+
+    /**
+     * Get current Discogs username
+     * @return Username or null if failed
+     */
+    public String getDiscogsUsername() {
+        try {
+            if (DISCOGS_TOKEN == null || DISCOGS_TOKEN.equals("YOUR_DISCOGS_TOKEN_HERE") || DISCOGS_TOKEN.isEmpty()) {
+                return null;
+            }
+
+            Call<tech.schober.vinylcast.acr.model.DiscogsIdentityResponse> call =
+                    discogsApi.getIdentity(DISCOGS_TOKEN);
+            Response<tech.schober.vinylcast.acr.model.DiscogsIdentityResponse> response = call.execute();
+
+            if (response.isSuccessful() && response.body() != null) {
+                return response.body().getUsername();
+            }
+            return null;
+        } catch (IOException e) {
+            Timber.e(e, "Error getting Discogs username");
+            return null;
+        }
+    }
+
+    /**
+     * Check if a release is in user's Discogs collection
+     * @param username Discogs username
+     * @param releaseId Release ID to check
+     * @return true if in collection, false otherwise
+     */
+    public boolean isInCollection(String username, long releaseId) {
+        try {
+            if (DISCOGS_TOKEN == null || DISCOGS_TOKEN.equals("YOUR_DISCOGS_TOKEN_HERE") || DISCOGS_TOKEN.isEmpty()) {
+                return false;
+            }
+
+            // Check first 100 items in collection (folder 0 = All)
+            Call<tech.schober.vinylcast.acr.model.DiscogsCollectionResponse> call =
+                    discogsApi.getCollectionItems(username, 0, DISCOGS_TOKEN, 1, 100);
+            Response<tech.schober.vinylcast.acr.model.DiscogsCollectionResponse> response = call.execute();
+
+            if (response.isSuccessful() && response.body() != null) {
+                tech.schober.vinylcast.acr.model.DiscogsCollectionResponse collection = response.body();
+                if (collection.getReleases() != null) {
+                    for (tech.schober.vinylcast.acr.model.DiscogsCollectionResponse.CollectionRelease release : collection.getReleases()) {
+                        if (release.getBasicInformation() != null &&
+                                release.getBasicInformation().getId() == releaseId) {
+                            return true;
+                        }
+                    }
+                }
+                // If more pages, check them too
+                if (collection.getPagination() != null && collection.getPagination().getPages() > 1) {
+                    for (int page = 2; page <= Math.min(collection.getPagination().getPages(), 10); page++) {
+                        call = discogsApi.getCollectionItems(username, 0, DISCOGS_TOKEN, page, 100);
+                        response = call.execute();
+                        if (response.isSuccessful() && response.body() != null) {
+                            for (tech.schober.vinylcast.acr.model.DiscogsCollectionResponse.CollectionRelease release : response.body().getReleases()) {
+                                if (release.getBasicInformation() != null &&
+                                        release.getBasicInformation().getId() == releaseId) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        } catch (IOException e) {
+            Timber.e(e, "Error checking Discogs collection");
+            return false;
+        }
+    }
+
+    /**
+     * Add a release to user's Discogs collection
+     * @param username Discogs username
+     * @param releaseId Release ID to add
+     * @return true if successful, false otherwise
+     */
+    public boolean addToCollection(String username, long releaseId) {
+        try {
+            if (DISCOGS_TOKEN == null || DISCOGS_TOKEN.equals("YOUR_DISCOGS_TOKEN_HERE") || DISCOGS_TOKEN.isEmpty()) {
+                Timber.e("Discogs token not configured");
+                return false;
+            }
+
+            // Folder 1 = Uncategorized (default collection folder)
+            Call<Void> call = discogsApi.addToCollection(username, 1, releaseId, DISCOGS_TOKEN, new Object());
+            Response<Void> response = call.execute();
+
+            if (response.isSuccessful()) {
+                Timber.i("Successfully added release %d to collection", releaseId);
+                return true;
+            } else {
+                Timber.e("Failed to add to collection: HTTP %d %s", response.code(), response.message());
+                return false;
+            }
+        } catch (IOException e) {
+            Timber.e(e, "Error adding to Discogs collection");
+            return false;
         }
     }
 }
