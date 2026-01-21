@@ -23,8 +23,8 @@ import timber.log.Timber;
  * passing the audio through unchanged (acts as a "tee")
  */
 public class AudioRecognitionStreamProvider implements Runnable, AudioStreamProvider {
-    private static final int RECOGNITION_INTERVAL_MS = 30000; // Recognize every 30 seconds
-    private static final int FINGERPRINT_DURATION_SEC = 15; // Use 15 seconds of audio for fingerprinting
+    private static final int RECOGNITION_INTERVAL_MS = 120000; // Recognize every 2 minutes
+    private static final int FINGERPRINT_DURATION_SEC = 120; // Use 120 seconds (2 min) of audio for fingerprinting - AcoustID recommended duration
     private static final int BUFFER_SIZE = 4096;
 
     private final AudioStreamProvider upstreamProvider;
