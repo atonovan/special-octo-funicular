@@ -109,6 +109,21 @@
                 android:maxLines="2"
                 android:ellipsize="end" />
 
+            <!-- Flip record button -->
+            <Button
+                android:id="@+id/flip_record_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="↻ Flip to Side B"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:backgroundTint="@color/colorAccent"
+                android:textColor="@android:color/black"
+                android:paddingLeft="24dp"
+                android:paddingRight="24dp"
+                android:visibility="gone" />
+
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

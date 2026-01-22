@@ -77,10 +77,22 @@ public class NowPlayingManager {
         return currentlyPlaying;
     }
 
-    public void clear() {
+    public void clearNowPlaying() {
         this.currentlyPlaying = null;
         clearPrefs();
         notifyListeners();
+    }
+
+    /**
+     * Flip the currently playing record to side B
+     * Adjusts playback time to start of side B
+     */
+    public void flipRecordToSideB() {
+        if (currentlyPlaying != null) {
+            currentlyPlaying.flipToSideB();
+            saveToPrefs(); // Save the updated start time
+            notifyListeners();
+        }
     }
 
     private void saveToPrefs() {

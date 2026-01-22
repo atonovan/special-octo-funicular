@@ -38,20 +38,21 @@
         <!-- Center button - Camera icon initially, album artwork after scan -->
         <ImageButton
             android:id="@+id/centerAlbumButton"
-            android:layout_width="300dp"
-            android:layout_height="300dp"
+            android:layout_width="380dp"
+            android:layout_height="380dp"
             android:layout_marginLeft="@dimen/activity_horizontal_margin"
             android:layout_marginTop="@dimen/activity_vertical_margin"
             android:layout_marginRight="@dimen/activity_horizontal_margin"
-            android:layout_marginBottom="@dimen/activity_vertical_margin"
+            android:layout_marginBottom="8dp"
             android:background="@android:color/transparent"
             android:scaleType="fitCenter"
             android:src="@android:drawable/ic_menu_camera"
             android:contentDescription="Scan album or view Now Playing"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/unloadButton"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_chainStyle="packed" />
 
         <!-- Text overlay for camera icon -->
         <TextView
@@ -70,6 +71,25 @@
             app:layout_constraintStart_toStartOf="@id/centerAlbumButton"
             app:layout_constraintTop_toBottomOf="@id/centerAlbumButton"
             android:layout_marginTop="-40dp" />
+
+        <!-- Unload button - Take record off the platter -->
+        <Button
+            android:id="@+id/unloadButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⏏ Unload Record"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            android:backgroundTint="@color/colorAccent"
+            android:textColor="@android:color/black"
+            android:paddingLeft="24dp"
+            android:paddingRight="24dp"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/centerAlbumButton"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

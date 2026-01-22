@@ -124,6 +124,76 @@ public class RecognitionResult {
         return null;
     }
 
+    /**
+     * Check if current track is on side A
+     * @return true if on side A, false if on side B or unknown
+     */
+    public boolean isOnSideA() {
+        DiscogsReleaseDetails.Track currentTrack = getCurrentTrack(true);
+        if (currentTrack == null || currentTrack.getPosition() == null) {
+            return true; // Default to side A
+        }
+        String position = currentTrack.getPosition().toUpperCase();
+        return position.startsWith("A") || position.startsWith("1");
+    }
+
+    /**
+     * Get the total duration of side A in seconds
+     * @return Duration of side A in seconds, or 0 if not available
+     */
+    public int getSideADurationSeconds() {
+        if (tracklist == null || tracklist.isEmpty()) {
+            return 0;
+        }
+
+        int duration = 0;
+        for (DiscogsReleaseDetails.Track track : tracklist) {
+            if (track.getType() != null && !track.getType().equals("track")) {
+                continue;
+            }
+            if (track.getPosition() == null) {
+                continue;
+            }
+
+            String position = track.getPosition().toUpperCase();
+            // Count tracks on side A (positions starting with "A" or "1")
+            if (position.startsWith("A") || position.startsWith("1")) {
+                duration += track.getDurationSeconds();
+            }
+        }
+        return duration;
+    }
+
+    /**
+     * Manually flip the record to side B
+     * Adjusts the start time to skip side A
+     */
+    public void flipToSideB() {
+        int sideADuration = getSideADurationSeconds();
+        if (sideADuration > 0) {
+            // Adjust start time backwards by side A duration
+            // This makes elapsed time jump to the start of side B
+            startTimeMillis = System.currentTimeMillis() - (sideADuration * 1000L);
+        }
+    }
+
+    /**
+     * Check if we should show the flip record button
+     * Show it when we're near the end of side A (within last 30 seconds)
+     * @return true if flip button should be shown
+     */
+    public boolean shouldShowFlipButton() {
+        if (!isOnSideA() || tracklist == null || tracklist.isEmpty()) {
+            return false;
+        }
+
+        long elapsedSeconds = (System.currentTimeMillis() - startTimeMillis) / 1000;
+        int sideADuration = getSideADurationSeconds();
+
+        // Show button when within last 30 seconds of side A, or any time on side A
+        return sideADuration > 0 && elapsedSeconds < sideADuration;
+    }
+
     @Override
     public String toString() {
         return "RecognitionResult{" +

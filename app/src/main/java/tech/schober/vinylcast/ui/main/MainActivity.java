@@ -68,6 +68,7 @@ public class MainActivity extends VinylCastActivity implements
     private PlayStopView playStopButton;
     private ImageButton centerAlbumButton;
     private TextView scanPromptText;
+    private android.widget.Button unloadButton;
     private ObjectAnimator recordingButtonAnimator;
 
     private BarGraphView barGraphView;
@@ -90,6 +91,7 @@ public class MainActivity extends VinylCastActivity implements
         // Center album button - camera or artwork
         centerAlbumButton = findViewById(R.id.centerAlbumButton);
         scanPromptText = findViewById(R.id.scanPromptText);
+        unloadButton = findViewById(R.id.unloadButton);
 
         playStopButton = findViewById(R.id.play_stop_view);
         playStopButton.setOnClickListener(v -> {
@@ -113,6 +115,12 @@ public class MainActivity extends VinylCastActivity implements
                 // Has album - launch Now Playing fullscreen
                 startActivity(new Intent(this, tech.schober.vinylcast.acr.NowPlayingActivity.class));
             }
+        });
+
+        // Set up unload button - take record off the platter
+        unloadButton.setOnClickListener(v -> {
+            nowPlayingManager.clearNowPlaying();
+            // updateCenterAlbumDisplay will be called via listener callback
         });
 
         // Load current Now Playing info
@@ -406,23 +414,25 @@ public class MainActivity extends VinylCastActivity implements
     }
 
     private void updateCenterAlbumDisplay(RecognitionResult result) {
-        if (centerAlbumButton == null || scanPromptText == null) {
-            Timber.e("Center album button or scan prompt text is null");
+        if (centerAlbumButton == null || scanPromptText == null || unloadButton == null) {
+            Timber.e("Center album button, scan prompt text, or unload button is null");
             return;
         }
 
         if (result == null) {
-            // No album - show camera icon with prompt
+            // No album - show camera icon with prompt, hide unload button
             centerAlbumButton.setImageResource(android.R.drawable.ic_menu_camera);
             scanPromptText.setVisibility(View.VISIBLE);
+            unloadButton.setVisibility(View.GONE);
         } else {
-            // Has album - show artwork and hide prompt
+            // Has album - show artwork, hide prompt, show unload button
             if (result.getAlbumArtwork() != null) {
                 centerAlbumButton.setImageBitmap(result.getAlbumArtwork());
             } else {
                 centerAlbumButton.setImageResource(R.drawable.vinyl_orange_512);
             }
             scanPromptText.setVisibility(View.GONE);
+            unloadButton.setVisibility(View.VISIBLE);
         }
     }
 }

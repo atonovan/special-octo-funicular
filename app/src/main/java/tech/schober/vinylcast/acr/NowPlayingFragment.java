@@ -40,6 +40,7 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
     private TextView trackArtist;
     private TextView trackYear;
     private TextView currentTrack;
+    private android.widget.Button flipRecordButton;
 
     private NowPlayingManager nowPlayingManager;
     private SharedPreferences prefs;
@@ -69,6 +70,7 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
         trackArtist = view.findViewById(R.id.track_artist);
         trackYear = view.findViewById(R.id.track_year);
         currentTrack = view.findViewById(R.id.current_track);
+        flipRecordButton = view.findViewById(R.id.flip_record_button);
 
         nowPlayingManager = NowPlayingManager.getInstance(requireContext());
         nowPlayingManager.addListener(this);
@@ -77,6 +79,13 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
 
         // Add tap gesture for fullscreen toggle
         albumArtwork.setOnClickListener(v -> toggleFullscreen());
+
+        // Set up flip record button
+        flipRecordButton.setOnClickListener(v -> {
+            nowPlayingManager.flipRecordToSideB();
+            // Update UI immediately
+            updateCurrentTrack();
+        });
 
         // Load current Now Playing info
         updateNowPlaying(nowPlayingManager.getNowPlaying());
@@ -144,6 +153,7 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
         RecognitionResult result = nowPlayingManager.getNowPlaying();
         if (result == null) {
             currentTrack.setVisibility(View.GONE);
+            flipRecordButton.setVisibility(View.GONE);
             return;
         }
 
@@ -154,8 +164,16 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
             String trackInfo = "Now Playing: " + track.getPosition() + ". " + track.getTitle();
             currentTrack.setText(trackInfo);
             currentTrack.setVisibility(View.VISIBLE);
+
+            // Show flip button if on side A
+            if (result.shouldShowFlipButton()) {
+                flipRecordButton.setVisibility(View.VISIBLE);
+            } else {
+                flipRecordButton.setVisibility(View.GONE);
+            }
         } else {
             currentTrack.setVisibility(View.GONE);
+            flipRecordButton.setVisibility(View.GONE);
         }
     }
 
