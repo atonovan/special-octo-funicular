@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#3F51B5</color>
-    <color name="colorPrimaryDark">#303F9F</color>
-    <color name="colorPrimaryLight">#C5CAE9</color>
-    <color name="colorAccent">#FF5722</color>
-    <color name="colorAccent2">#FF8000</color>
+    <!-- Gold Soundz Theme - Cobalt Blue and Gold -->
+    <color name="colorPrimary">#0047AB</color> <!-- Cobalt Blue for title bar and play button -->
+    <color name="colorPrimaryDark">#003580</color> <!-- Darker Cobalt for status bar -->
+    <color name="colorPrimaryLight">#5A7DBF</color> <!-- Light Cobalt -->
+    <color name="colorAccent">#D4AF37</color> <!-- Gold for settings icon and UI elements -->
+    <color name="colorAccent2">#D4AF37</color> <!-- Gold for pause button -->
     <color name="colorPrimaryText">#212121</color>
     <color name="colorSecondaryText">#757575</color>
     <color name="colorIcons">#FFFFFF</color>

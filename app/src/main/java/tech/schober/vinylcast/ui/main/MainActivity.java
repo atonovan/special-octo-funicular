@@ -66,34 +66,16 @@ public class MainActivity extends VinylCastActivity implements
     private TextView statusText;
 
     private PlayStopView playStopButton;
-    private ImageButton startRecordingButton;
+    private ImageButton centerAlbumButton;
+    private TextView scanPromptText;
     private ObjectAnimator recordingButtonAnimator;
 
     private BarGraphView barGraphView;
 
-    private LinearLayout recognitionContainer;
-    private ImageView albumArtworkView;
-    private TextView trackTitleView;
-    private TextView trackArtistView;
-    private TextView trackAlbumView;
-    private TextView trackTimeView;
-
     private NowPlayingManager nowPlayingManager;
     private SharedPreferences prefs;
-    private Handler timeUpdateHandler = new Handler(Looper.getMainLooper());
 
     private boolean isServiceRecording = false;
-
-    // Update time counter every second
-    private static final int TIME_UPDATE_INTERVAL_MS = 1000;
-
-    private final Runnable timeUpdateRunnable = new Runnable() {
-        @Override
-        public void run() {
-            updateTimeCounter();
-            timeUpdateHandler.postDelayed(this, TIME_UPDATE_INTERVAL_MS);
-        }
-    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,9 +87,9 @@ public class MainActivity extends VinylCastActivity implements
 
         statusText = findViewById(R.id.statusText);
 
-        // button to begin audio record
-        startRecordingButton = findViewById(R.id.startRecordingButton);
-        startRecordingButton.setOnClickListener(v -> startRecordingButtonClicked());
+        // Center album button - camera or artwork
+        centerAlbumButton = findViewById(R.id.centerAlbumButton);
+        scanPromptText = findViewById(R.id.scanPromptText);
 
         playStopButton = findViewById(R.id.play_stop_view);
         playStopButton.setOnClickListener(v -> {
@@ -117,38 +99,26 @@ public class MainActivity extends VinylCastActivity implements
 
         barGraphView = findViewById(R.id.audio_visualizer);
 
-        // Initialize recognition UI elements
-        recognitionContainer = findViewById(R.id.recognition_container);
-        albumArtworkView = findViewById(R.id.album_artwork);
-        trackTitleView = findViewById(R.id.track_title);
-        trackArtistView = findViewById(R.id.track_artist);
-        trackAlbumView = findViewById(R.id.track_album);
-        trackTimeView = findViewById(R.id.track_time);
-
-        // Log if any views are null to help debug
-        if (recognitionContainer == null) {
-            Timber.e("recognitionContainer is null after findViewById");
-        }
-        if (albumArtworkView == null) {
-            Timber.e("albumArtworkView is null after findViewById");
-        }
-        if (trackTitleView == null || trackArtistView == null || trackAlbumView == null) {
-            Timber.e("One or more track info views are null after findViewById");
-        }
-
         // Initialize Now Playing manager
         nowPlayingManager = NowPlayingManager.getInstance(this);
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        // Make artwork clickable to launch Now Playing view
-        albumArtworkView.setOnClickListener(v -> {
-            startActivity(new Intent(this, tech.schober.vinylcast.acr.NowPlayingActivity.class));
+        // Set up center button click behavior
+        centerAlbumButton.setOnClickListener(v -> {
+            RecognitionResult nowPlaying = nowPlayingManager.getNowPlaying();
+            if (nowPlaying == null) {
+                // No album - launch barcode scanner
+                startActivity(new Intent(this, tech.schober.vinylcast.acr.BarcodeScannerActivity.class));
+            } else {
+                // Has album - launch Now Playing fullscreen
+                startActivity(new Intent(this, tech.schober.vinylcast.acr.NowPlayingActivity.class));
+            }
         });
 
         // Load current Now Playing info
         RecognitionResult nowPlaying = nowPlayingManager.getNowPlaying();
         if (nowPlaying != null) {
-            updateNowPlayingUI(nowPlaying);
+            updateCenterAlbumDisplay(nowPlaying);
         }
     }
 
@@ -164,12 +134,6 @@ public class MainActivity extends VinylCastActivity implements
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
         switch (item.getItemId()) {
-            case R.id.menu_scan_barcode:
-                startActivity(new Intent(this, tech.schober.vinylcast.acr.BarcodeScannerActivity.class));
-                return true;
-            case R.id.menu_now_playing:
-                startActivity(new Intent(this, tech.schober.vinylcast.acr.NowPlayingActivity.class));
-                return true;
             case R.id.menu_settings:
                 startActivity(new Intent(this, SettingsActivity.class));
                 return true;
@@ -192,18 +156,13 @@ public class MainActivity extends VinylCastActivity implements
         // Register Now Playing listener
         nowPlayingManager.addListener(this);
 
-        // Start time counter updates if we have Now Playing
-        if (nowPlayingManager.getNowPlaying() != null) {
-            timeUpdateHandler.post(timeUpdateRunnable);
-        }
+        // Refresh display in case it changed while paused
+        updateCenterAlbumDisplay(nowPlayingManager.getNowPlaying());
     }
 
     @Override
     protected void onPause() {
         Timber.d("onPause");
-
-        // Stop time counter updates
-        timeUpdateHandler.removeCallbacks(timeUpdateRunnable);
 
         // Unregister Now Playing listener
         nowPlayingManager.removeListener(this);
@@ -334,22 +293,7 @@ public class MainActivity extends VinylCastActivity implements
     }
 
     private void animateRecord(boolean animate) {
-        if (animate) {
-            if (recordingButtonAnimator == null) {
-                recordingButtonAnimator = ObjectAnimator.ofFloat(startRecordingButton, "rotation", 0, 360);
-                recordingButtonAnimator.setDuration(1800); // ~33.33 RPM
-                recordingButtonAnimator.setInterpolator(new LinearInterpolator());
-                recordingButtonAnimator.setRepeatCount(Animation.INFINITE);
-                recordingButtonAnimator.start();
-            }
-            // looks better if we go back in time a bit
-            recordingButtonAnimator.setCurrentPlayTime(recordingButtonAnimator.getCurrentPlayTime()-300);
-            recordingButtonAnimator.resume();
-        } else {
-            if (recordingButtonAnimator != null) {
-                recordingButtonAnimator.pause();
-            }
-        }
+        // Animation removed - no longer needed with centered artwork
     }
 
     /**
@@ -457,112 +401,28 @@ public class MainActivity extends VinylCastActivity implements
     @Override
     public void onNowPlayingChanged(RecognitionResult result) {
         runOnUiThread(() -> {
-            updateNowPlayingUI(result);
-
-            // Start/stop time updates based on whether we have Now Playing
-            timeUpdateHandler.removeCallbacks(timeUpdateRunnable);
-            if (result != null) {
-                timeUpdateHandler.post(timeUpdateRunnable);
-            }
+            updateCenterAlbumDisplay(result);
         });
     }
 
-    private void updateNowPlayingUI(RecognitionResult result) {
-        // Check if all views are initialized
-        if (recognitionContainer == null || albumArtworkView == null ||
-            trackTitleView == null || trackArtistView == null || trackAlbumView == null) {
-            Timber.e("Cannot update Now Playing UI - one or more views are null");
+    private void updateCenterAlbumDisplay(RecognitionResult result) {
+        if (centerAlbumButton == null || scanPromptText == null) {
+            Timber.e("Center album button or scan prompt text is null");
             return;
         }
 
         if (result == null) {
-            recognitionContainer.setVisibility(View.GONE);
-            return;
-        }
-
-        // Update album info
-        trackTitleView.setText(result.getAlbum() != null ? result.getAlbum() : "Unknown Album");
-        trackArtistView.setText(result.getArtist() != null ? result.getArtist() : "Unknown Artist");
-
-        // Show year if available
-        String albumInfo = "";
-        if (result.getYear() != null && result.getYear() > 0) {
-            albumInfo = String.valueOf(result.getYear());
-        }
-        trackAlbumView.setText(albumInfo);
-
-        // Update artwork
-        if (result.getAlbumArtwork() != null) {
-            albumArtworkView.setImageBitmap(result.getAlbumArtwork());
+            // No album - show camera icon with prompt
+            centerAlbumButton.setImageResource(android.R.drawable.ic_menu_camera);
+            scanPromptText.setVisibility(View.VISIBLE);
         } else {
-            albumArtworkView.setImageResource(R.drawable.vinyl_orange_512);
-        }
-
-        // Update time counter
-        updateTimeCounter();
-
-        recognitionContainer.setVisibility(View.VISIBLE);
-    }
-
-    private void updateTimeCounter() {
-        RecognitionResult result = nowPlayingManager.getNowPlaying();
-        if (result == null || trackTimeView == null) {
-            if (trackTimeView != null) {
-                trackTimeView.setVisibility(View.GONE);
+            // Has album - show artwork and hide prompt
+            if (result.getAlbumArtwork() != null) {
+                centerAlbumButton.setImageBitmap(result.getAlbumArtwork());
+            } else {
+                centerAlbumButton.setImageResource(R.drawable.vinyl_orange_512);
             }
-            return;
-        }
-
-        // Check if time counter is enabled
-        boolean showTime = prefs.getBoolean("prefs_key_show_time_counter", true);
-        if (!showTime) {
-            trackTimeView.setVisibility(View.GONE);
-            return;
-        }
-
-        long startTime = result.getStartTimeMillis();
-        if (startTime == 0) {
-            trackTimeView.setVisibility(View.GONE);
-            return;
-        }
-
-        // Calculate elapsed time
-        long elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000;
-
-        // Calculate total album duration
-        int totalSeconds = 0;
-        if (result.getTracklist() != null) {
-            for (DiscogsReleaseDetails.Track track : result.getTracklist()) {
-                if (track.getType() != null && track.getType().equals("track")) {
-                    totalSeconds += track.getDurationSeconds();
-                }
-            }
-        }
-
-        // Format time strings
-        String elapsedTime = formatTime(elapsedSeconds);
-        String timeText;
-
-        if (totalSeconds > 0) {
-            String totalTime = formatTime(totalSeconds);
-            timeText = elapsedTime + " / " + totalTime;
-        } else {
-            timeText = elapsedTime;
-        }
-
-        trackTimeView.setText(timeText);
-        trackTimeView.setVisibility(View.VISIBLE);
-    }
-
-    private String formatTime(long seconds) {
-        long hours = seconds / 3600;
-        long minutes = (seconds % 3600) / 60;
-        long secs = seconds % 60;
-
-        if (hours > 0) {
-            return String.format("%d:%02d:%02d", hours, minutes, secs);
-        } else {
-            return String.format("%d:%02d", minutes, secs);
+            scanPromptText.setVisibility(View.GONE);
         }
     }
 }

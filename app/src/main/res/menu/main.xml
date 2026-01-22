@@ -7,16 +7,6 @@
         app:actionProviderClass="androidx.mediarouter.app.MediaRouteActionProvider"
         app:showAsAction="always" />
     <item
-        android:id="@+id/menu_now_playing"
-        android:icon="@android:drawable/ic_menu_gallery"
-        android:title="@string/menu_now_playing"
-        app:showAsAction="ifRoom" />
-    <item
-        android:id="@+id/menu_scan_barcode"
-        android:icon="@android:drawable/ic_menu_camera"
-        android:title="@string/menu_scan_barcode"
-        app:showAsAction="ifRoom" />
-    <item
         android:id="@+id/menu_settings"
         android:icon="@drawable/ic_settings_white_24dp"
         android:title="@string/menu_settings"

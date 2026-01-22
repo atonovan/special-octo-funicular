@@ -35,21 +35,41 @@
             app:maxValue="0"
             app:minValue="-112" />
 
+        <!-- Center button - Camera icon initially, album artwork after scan -->
         <ImageButton
-            android:id="@+id/startRecordingButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:id="@+id/centerAlbumButton"
+            android:layout_width="300dp"
+            android:layout_height="300dp"
             android:layout_marginLeft="@dimen/activity_horizontal_margin"
             android:layout_marginTop="@dimen/activity_vertical_margin"
             android:layout_marginRight="@dimen/activity_horizontal_margin"
             android:layout_marginBottom="@dimen/activity_vertical_margin"
             android:background="@android:color/transparent"
             android:scaleType="fitCenter"
-            android:src="@drawable/vinyl_orange_512"
+            android:src="@android:drawable/ic_menu_camera"
+            android:contentDescription="Scan album or view Now Playing"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Text overlay for camera icon -->
+        <TextView
+            android:id="@+id/scanPromptText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Click to scan album"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/colorPrimary"
+            android:background="#CCFFFFFF"
+            android:padding="12dp"
+            android:visibility="visible"
+            app:layout_constraintBottom_toBottomOf="@id/centerAlbumButton"
+            app:layout_constraintEnd_toEndOf="@id/centerAlbumButton"
+            app:layout_constraintStart_toStartOf="@id/centerAlbumButton"
+            app:layout_constraintTop_toBottomOf="@id/centerAlbumButton"
+            android:layout_marginTop="-40dp" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -66,72 +86,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/recordContainer">
-
-        <LinearLayout
-            android:id="@+id/recognition_container"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/activity_vertical_margin"
-            android:layout_marginBottom="@dimen/activity_vertical_margin"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:visibility="gone">
-
-            <ImageView
-                android:id="@+id/album_artwork"
-                android:layout_width="120dp"
-                android:layout_height="120dp"
-                android:layout_marginEnd="16dp"
-                android:scaleType="centerCrop"
-                android:contentDescription="Album artwork" />
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/track_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:maxLines="2"
-                    android:ellipsize="end" />
-
-                <TextView
-                    android:id="@+id/track_artist"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="16sp"
-                    android:layout_marginTop="4dp"
-                    android:maxLines="1"
-                    android:ellipsize="end" />
-
-                <TextView
-                    android:id="@+id/track_album"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:layout_marginTop="2dp"
-                    android:maxLines="1"
-                    android:ellipsize="end" />
-
-                <TextView
-                    android:id="@+id/track_time"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="12sp"
-                    android:layout_marginTop="8dp"
-                    android:textStyle="italic"
-                    android:textColor="#808080"
-                    android:visibility="gone"
-                    android:maxLines="1" />
-
-            </LinearLayout>
-
-        </LinearLayout>
 
         <TextView
             android:id="@+id/statusText"
