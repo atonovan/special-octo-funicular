@@ -45,6 +45,10 @@ public class BarcodeScannerActivity extends AppCompatActivity {
 
     private PreviewView cameraPreview;
     private TextView instructionText;
+    private android.view.View messageOverlay;
+    private TextView messageAlbumText;
+    private TextView messageStatusText;
+    private TextView messageSubtitleText;
     private ExecutorService cameraExecutor;
     private BarcodeScanner barcodeScanner;
     private AudioRecognitionApiClient apiClient;
@@ -57,6 +61,10 @@ public class BarcodeScannerActivity extends AppCompatActivity {
 
         cameraPreview = findViewById(R.id.cameraPreview);
         instructionText = findViewById(R.id.instructionText);
+        messageOverlay = findViewById(R.id.messageOverlay);
+        messageAlbumText = findViewById(R.id.messageAlbumText);
+        messageStatusText = findViewById(R.id.messageStatusText);
+        messageSubtitleText = findViewById(R.id.messageSubtitleText);
 
         cameraExecutor = Executors.newSingleThreadExecutor();
         apiClient = new AudioRecognitionApiClient();
@@ -212,10 +220,11 @@ public class BarcodeScannerActivity extends AppCompatActivity {
             String username = apiClient.getDiscogsUsername();
             if (username == null || discogsReleaseId == null) {
                 runOnUiThread(() -> {
-                    Toast.makeText(this,
-                            "Found: " + artist + " - " + album,
-                            Toast.LENGTH_LONG).show();
-                    finish();
+                    showProminentMessage(
+                            artist + " - " + album,
+                            "Album Found",
+                            "Set as Now Playing",
+                            2500);
                 });
                 return;
             }
@@ -229,10 +238,11 @@ public class BarcodeScannerActivity extends AppCompatActivity {
                 if (inCollection) {
                     // Already in collection - show fun message
                     String funMessage = getRandomCollectionMessage();
-                    Toast.makeText(this,
-                            artist + " - " + album + "\n" + funMessage + "\n\nSet as Now Playing",
-                            Toast.LENGTH_LONG).show();
-                    finish();
+                    showProminentMessage(
+                            artist + " - " + album,
+                            funMessage,
+                            "Set as Now Playing",
+                            3000);
                 } else {
                     // Not in collection - offer to add
                     showAddToCollectionDialog(artist, album, username, discogsReleaseId);
@@ -266,26 +276,48 @@ public class BarcodeScannerActivity extends AppCompatActivity {
                         boolean success = apiClient.addToCollection(username, releaseId);
                         runOnUiThread(() -> {
                             if (success) {
-                                Toast.makeText(this,
-                                        "Added to your Discogs collection!\nSet as Now Playing",
-                                        Toast.LENGTH_LONG).show();
+                                showProminentMessage(
+                                        artist + " - " + album,
+                                        "✓ Added to Collection",
+                                        "Set as Now Playing",
+                                        2500);
                             } else {
-                                Toast.makeText(this,
+                                showProminentMessage(
+                                        artist + " - " + album,
                                         "Failed to add to collection",
-                                        Toast.LENGTH_SHORT).show();
+                                        "Set as Now Playing",
+                                        2500);
                             }
-                            finish();
                         });
                     }).start();
                 })
                 .setNegativeButton("Skip", (dialog, which) -> {
-                    Toast.makeText(this,
+                    showProminentMessage(
                             artist + " - " + album,
-                            Toast.LENGTH_SHORT).show();
-                    finish();
+                            "Album Found",
+                            "Set as Now Playing",
+                            2500);
                 })
                 .setOnCancelListener(dialog -> finish())
                 .show();
+    }
+
+    /**
+     * Show a prominent message overlay with album info and status
+     * @param albumText Album and artist info
+     * @param statusText Status message (e.g., collection status)
+     * @param subtitleText Additional info (e.g., "Set as Now Playing")
+     * @param delayBeforeFinishMs Delay before finishing activity (0 = don't finish)
+     */
+    private void showProminentMessage(String albumText, String statusText, String subtitleText, int delayBeforeFinishMs) {
+        messageAlbumText.setText(albumText);
+        messageStatusText.setText(statusText);
+        messageSubtitleText.setText(subtitleText);
+        messageOverlay.setVisibility(android.view.View.VISIBLE);
+
+        if (delayBeforeFinishMs > 0) {
+            messageOverlay.postDelayed(this::finish, delayBeforeFinishMs);
+        }
     }
 
     @Override
