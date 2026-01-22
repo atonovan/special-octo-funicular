@@ -6,6 +6,7 @@
     android:id="@+id/mainConstraintLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/colorAccent"
     android:clipToPadding="false"
     android:clipChildren="false"
     android:fitsSystemWindows="true"
@@ -81,8 +82,8 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:visibility="gone"
-            android:backgroundTint="@color/colorAccent"
-            android:textColor="@android:color/black"
+            android:backgroundTint="@color/colorPrimary"
+            android:textColor="@android:color/white"
             android:paddingLeft="24dp"
             android:paddingRight="24dp"
             android:layout_marginTop="8dp"
@@ -114,7 +115,8 @@
             android:layout_gravity="center"
             android:gravity="top|center"
             android:lines="2"
-            android:textSize="15sp" />
+            android:textSize="15sp"
+            android:textColor="@color/colorPrimary" />
     </LinearLayout>
 
     <LinearLayout
