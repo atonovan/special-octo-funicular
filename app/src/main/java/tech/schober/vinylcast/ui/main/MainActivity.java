@@ -421,7 +421,7 @@ public class MainActivity extends VinylCastActivity implements
 
         if (result == null) {
             // No album - show camera icon with prompt, hide unload button
-            centerAlbumButton.setImageResource(android.R.drawable.ic_menu_camera);
+            centerAlbumButton.setImageResource(R.drawable.ic_camera_large);
             scanPromptText.setVisibility(View.VISIBLE);
             unloadButton.setVisibility(View.GONE);
         } else {
