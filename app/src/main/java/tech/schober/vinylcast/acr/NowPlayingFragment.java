@@ -39,6 +39,7 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
     private TextView trackTitle;
     private TextView trackArtist;
     private TextView trackYear;
+    private TextView timeCounter;
     private TextView currentTrack;
     private android.widget.Button flipRecordButton;
 
@@ -69,6 +70,7 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
         trackTitle = view.findViewById(R.id.track_title);
         trackArtist = view.findViewById(R.id.track_artist);
         trackYear = view.findViewById(R.id.track_year);
+        timeCounter = view.findViewById(R.id.time_counter);
         currentTrack = view.findViewById(R.id.current_track);
         flipRecordButton = view.findViewById(R.id.flip_record_button);
 
@@ -153,11 +155,27 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
         RecognitionResult result = nowPlayingManager.getNowPlaying();
         if (result == null) {
             currentTrack.setVisibility(View.GONE);
+            timeCounter.setVisibility(View.GONE);
             flipRecordButton.setVisibility(View.GONE);
             return;
         }
 
         boolean trackProgressEnabled = isTrackProgressEnabled();
+        boolean showTimeCounter = prefs.getBoolean("prefs_key_show_time_counter", true);
+
+        // Update time counter
+        if (showTimeCounter && result.getTracklist() != null && !result.getTracklist().isEmpty()) {
+            long elapsedSeconds = (System.currentTimeMillis() - result.getStartTimeMillis()) / 1000;
+            int totalSeconds = getTotalDurationSeconds(result);
+
+            String elapsed = formatTime(elapsedSeconds);
+            String total = formatTime(totalSeconds);
+            timeCounter.setText(elapsed + " / " + total);
+            timeCounter.setVisibility(View.VISIBLE);
+        } else {
+            timeCounter.setVisibility(View.GONE);
+        }
+
         DiscogsReleaseDetails.Track track = result.getCurrentTrack(trackProgressEnabled);
 
         if (track != null && trackProgressEnabled) {
@@ -175,6 +193,24 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
             currentTrack.setVisibility(View.GONE);
             flipRecordButton.setVisibility(View.GONE);
         }
+    }
+
+    private int getTotalDurationSeconds(RecognitionResult result) {
+        int total = 0;
+        if (result.getTracklist() != null) {
+            for (DiscogsReleaseDetails.Track track : result.getTracklist()) {
+                if (track.getType() != null && track.getType().equals("track")) {
+                    total += track.getDurationSeconds();
+                }
+            }
+        }
+        return total;
+    }
+
+    private String formatTime(long seconds) {
+        long minutes = seconds / 60;
+        long secs = seconds % 60;
+        return String.format("%d:%02d", minutes, secs);
     }
 
     private boolean isTrackProgressEnabled() {
@@ -272,7 +308,14 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
             return;
         }
 
+        androidx.appcompat.app.ActionBar actionBar = ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar();
+
         if (isFullscreen) {
+            // Hide action bar
+            if (actionBar != null) {
+                actionBar.hide();
+            }
+
             // Hide system UI (status bar, navigation bar) but keep metadata visible
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 getActivity().getWindow().setDecorFitsSystemWindows(false);
@@ -289,8 +332,13 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
                         View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
             }
 
-            Timber.d("Entered fullscreen mode - metadata still visible");
+            Timber.d("Entered fullscreen mode - action bar and system UI hidden");
         } else {
+            // Show action bar
+            if (actionBar != null) {
+                actionBar.show();
+            }
+
             // Show system UI
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 getActivity().getWindow().setDecorFitsSystemWindows(true);

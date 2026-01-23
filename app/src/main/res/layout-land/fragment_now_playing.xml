@@ -92,6 +92,18 @@
                 android:textColor="#C0FFFFFF"
                 android:visibility="gone" />
 
+            <!-- Time counter (elapsed / total) -->
+            <TextView
+                android:id="@+id/time_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text=""
+                android:textSize="20sp"
+                android:textColor="@color/colorAccent"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
             <!-- Current track (if track progress enabled) -->
             <TextView
                 android:id="@+id/current_track"

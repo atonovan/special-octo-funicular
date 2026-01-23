@@ -30,6 +30,9 @@
 
     <style name="AppTheme.AlertDialogOverlay" parent="@style/ThemeOverlay.AppCompat.Dialog.Alert">
         <item name="android:windowTitleStyle">@style/AppTheme.DialogOverlay.DialogWindowTitle</item>
+        <!-- Make dialog buttons visible with cobalt blue text -->
+        <item name="colorAccent">@color/colorPrimary</item>
+        <item name="android:textColorPrimary">@android:color/black</item>
         <!--<item name="fontFamily">@font/ibm_plex_sans</item>-->
     </style>
 

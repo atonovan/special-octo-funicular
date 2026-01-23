@@ -201,8 +201,7 @@ public class BarcodeScannerActivity extends AppCompatActivity {
 
             if (result == null) {
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "Barcode not found in Discogs database", Toast.LENGTH_SHORT).show();
-                    instructionText.setText("Align barcode within frame");
+                    instructionText.setText("Barcode not found - try again");
                     isProcessing = false;
                 });
                 return;
