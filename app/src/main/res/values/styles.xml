@@ -63,6 +63,11 @@
         <item name="colorAccent">@color/colorPrimary</item>
         <item name="colorControlActivated">@color/colorPrimary</item>
         <item name="colorControlHighlight">@color/colorPrimary</item>
+        <item name="colorControlNormal">@color/colorPrimary</item>
+
+        <!-- Switch thumb and track colors -->
+        <item name="colorSwitchThumbNormal">@color/colorPrimary</item>
+        <item name="android:colorForeground">@color/colorPrimary</item>
 
         <!-- Category title color -->
         <item name="preferenceCategoryTitleTextColor">@color/colorPrimary</item>

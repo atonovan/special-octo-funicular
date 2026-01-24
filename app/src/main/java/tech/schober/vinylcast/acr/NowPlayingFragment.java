@@ -48,6 +48,7 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
     private Handler trackUpdateHandler = new Handler(Looper.getMainLooper());
     private boolean isFullscreen = false;
 
+    private static final String KEY_FULLSCREEN_STATE = "fullscreen_state";
     // Update current track every 5 seconds
     private static final int TRACK_UPDATE_INTERVAL_MS = 5000;
 
@@ -79,6 +80,11 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
 
         prefs = PreferenceManager.getDefaultSharedPreferences(requireContext());
 
+        // Restore fullscreen state after orientation change
+        if (savedInstanceState != null) {
+            isFullscreen = savedInstanceState.getBoolean(KEY_FULLSCREEN_STATE, false);
+        }
+
         // Add tap gesture for fullscreen toggle
         albumArtwork.setOnClickListener(v -> toggleFullscreen());
 
@@ -99,12 +105,33 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
     }
 
     @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Apply fullscreen state after view is fully created
+        if (isFullscreen) {
+            // Post to handler to ensure view hierarchy is ready
+            view.post(() -> applyFullscreenState(true));
+        }
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(KEY_FULLSCREEN_STATE, isFullscreen);
+    }
+
+    @Override
     public void onDestroyView() {
-        super.onDestroyView();
+        // Restore system UI before destroying view
+        if (isFullscreen) {
+            applyFullscreenState(false);
+        }
         trackUpdateHandler.removeCallbacks(trackUpdateRunnable);
         if (nowPlayingManager != null) {
             nowPlayingManager.removeListener(this);
         }
+        super.onDestroyView();
     }
 
     @Override
@@ -167,6 +194,11 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
         if (showTimeCounter && result.getTracklist() != null && !result.getTracklist().isEmpty()) {
             long elapsedSeconds = (System.currentTimeMillis() - result.getStartTimeMillis()) / 1000;
             int totalSeconds = getTotalDurationSeconds(result);
+
+            // Cap elapsed time at total duration
+            if (elapsedSeconds > totalSeconds && totalSeconds > 0) {
+                elapsedSeconds = totalSeconds;
+            }
 
             String elapsed = formatTime(elapsedSeconds);
             String total = formatTime(totalSeconds);
@@ -303,55 +335,62 @@ public class NowPlayingFragment extends Fragment implements NowPlayingManager.No
 
     private void toggleFullscreen() {
         isFullscreen = !isFullscreen;
+        applyFullscreenState(isFullscreen);
+    }
 
-        if (getActivity() == null) {
+    private void applyFullscreenState(boolean fullscreen) {
+        if (getActivity() == null || !isAdded()) {
             return;
         }
 
-        androidx.appcompat.app.ActionBar actionBar = ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar();
+        try {
+            androidx.appcompat.app.ActionBar actionBar = ((androidx.appcompat.app.AppCompatActivity) getActivity()).getSupportActionBar();
 
-        if (isFullscreen) {
-            // Hide action bar
-            if (actionBar != null) {
-                actionBar.hide();
-            }
-
-            // Hide system UI (status bar, navigation bar) but keep metadata visible
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                getActivity().getWindow().setDecorFitsSystemWindows(false);
-                WindowInsetsController controller = getActivity().getWindow().getInsetsController();
-                if (controller != null) {
-                    controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
-                    controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            if (fullscreen) {
+                // Hide action bar
+                if (actionBar != null) {
+                    actionBar.hide();
                 }
-            } else {
-                // For older Android versions
-                getActivity().getWindow().getDecorView().setSystemUiVisibility(
-                        View.SYSTEM_UI_FLAG_FULLSCREEN |
-                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-            }
 
-            Timber.d("Entered fullscreen mode - action bar and system UI hidden");
-        } else {
-            // Show action bar
-            if (actionBar != null) {
-                actionBar.show();
-            }
-
-            // Show system UI
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                getActivity().getWindow().setDecorFitsSystemWindows(true);
-                WindowInsetsController controller = getActivity().getWindow().getInsetsController();
-                if (controller != null) {
-                    controller.show(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                // Hide system UI (status bar, navigation bar)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    getActivity().getWindow().setDecorFitsSystemWindows(false);
+                    WindowInsetsController controller = getActivity().getWindow().getInsetsController();
+                    if (controller != null) {
+                        controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                        controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                    }
+                } else {
+                    // For older Android versions
+                    getActivity().getWindow().getDecorView().setSystemUiVisibility(
+                            View.SYSTEM_UI_FLAG_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
                 }
-            } else {
-                getActivity().getWindow().getDecorView().setSystemUiVisibility(
-                        View.SYSTEM_UI_FLAG_VISIBLE);
-            }
 
-            Timber.d("Exited fullscreen mode");
+                Timber.d("Entered fullscreen mode - action bar and system UI hidden");
+            } else {
+                // Show action bar
+                if (actionBar != null) {
+                    actionBar.show();
+                }
+
+                // Show system UI
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    getActivity().getWindow().setDecorFitsSystemWindows(true);
+                    WindowInsetsController controller = getActivity().getWindow().getInsetsController();
+                    if (controller != null) {
+                        controller.show(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                    }
+                } else {
+                    getActivity().getWindow().getDecorView().setSystemUiVisibility(
+                            View.SYSTEM_UI_FLAG_VISIBLE);
+                }
+
+                Timber.d("Exited fullscreen mode");
+            }
+        } catch (Exception e) {
+            Timber.e(e, "Error applying fullscreen state");
         }
     }
 }
