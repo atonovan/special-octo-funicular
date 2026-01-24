@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Checked/On state - Light Cobalt Blue (30% alpha) -->
+    <item android:color="#4D0047AB" android:state_checked="true"/>
+    <!-- Unchecked/Off state - Light Gray -->
+    <item android:color="#CCCCCC"/>
+</selector>

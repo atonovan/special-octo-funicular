@@ -59,15 +59,16 @@
         <!-- Cobalt blue text for summaries -->
         <item name="android:textColorSecondary">@color/colorPrimary</item>
 
-        <!-- Cobalt blue for switches and seekbars -->
+        <!-- Switch colors with state lists for clear on/off indication -->
         <item name="colorAccent">@color/colorPrimary</item>
         <item name="colorControlActivated">@color/colorPrimary</item>
         <item name="colorControlHighlight">@color/colorPrimary</item>
-        <item name="colorControlNormal">@color/colorPrimary</item>
+        <item name="colorControlNormal">#424242</item>
 
-        <!-- Switch thumb and track colors -->
-        <item name="colorSwitchThumbNormal">@color/colorPrimary</item>
-        <item name="android:colorForeground">@color/colorPrimary</item>
+        <!-- Material switch thumb and track colors -->
+        <item name="colorSwitchThumbNormal">@color/switch_thumb_color</item>
+        <item name="android:thumbTint">@color/switch_thumb_color</item>
+        <item name="android:trackTint">@color/switch_track_color</item>
 
         <!-- Category title color -->
         <item name="preferenceCategoryTitleTextColor">@color/colorPrimary</item>
